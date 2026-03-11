@@ -1,6 +1,18 @@
 // scripts/check-deps.js
 import { execSync } from 'child_process';
 
+function getPythonCmd() {
+  for (const cmd of ['python3', 'python']) {
+    try {
+      execSync(`${cmd} --version`, { stdio: 'ignore' });
+      return cmd;
+    } catch {}
+  }
+  return null;
+}
+
+const pythonCmd = getPythonCmd();
+
 const checks = [
   {
     name: 'sox/rec',
@@ -12,7 +24,7 @@ const checks = [
   },
   {
     name: 'faster-whisper',
-    command: 'python3 -c "import faster_whisper"',
+    command: pythonCmd ? `${pythonCmd} -c "import faster_whisper"` : null,
     installHint: {
       darwin: 'pip install faster-whisper',
       win32: 'pip install faster-whisper',
@@ -22,6 +34,11 @@ const checks = [
 
 let allOk = true;
 for (const check of checks) {
+  if (!check.command) {
+    console.error(`❌ ${check.name} — Python 미설치 (Python 3.9+ 필요)`);
+    allOk = false;
+    continue;
+  }
   try {
     execSync(check.command, { stdio: 'ignore' });
     console.log(`✅ ${check.name}`);
