@@ -56,13 +56,23 @@ def transcribe(audio_path):
         all_text = []
         detected_language = 'ko'
 
-        for i, chunk_path in enumerate(chunk_paths, 1):
-            print(f"PROGRESS:{i}/{total}", file=sys.stderr, flush=True)
-            segments, info = model.transcribe(chunk_path, language=None, beam_size=5)
-            text = " ".join(s.text.strip() for s in segments)
-            all_text.append(text)
-            detected_language = info.language
-            os.unlink(chunk_path)
+        try:
+            for i, chunk_path in enumerate(chunk_paths, 1):
+                print(f"PROGRESS:{i}/{total}", file=sys.stderr, flush=True)
+                segments, info = model.transcribe(chunk_path, language=None, beam_size=5)
+                text = " ".join(s.text.strip() for s in segments)
+                all_text.append(text)
+                detected_language = info.language
+                os.unlink(chunk_path)
+        except Exception:
+            # Clean up any remaining temp files
+            for p in chunk_paths:
+                if os.path.exists(p):
+                    try:
+                        os.unlink(p)
+                    except Exception:
+                        pass
+            raise
 
         transcript = " ".join(all_text)
         language = detected_language
@@ -78,4 +88,8 @@ if __name__ == "__main__":
         print(json.dumps({"error": "audio_path argument required"}))
         sys.exit(1)
     audio_path = sys.argv[1]
-    transcribe(audio_path)
+    try:
+        transcribe(audio_path)
+    except Exception as e:
+        print(json.dumps({"error": str(e)}, ensure_ascii=False))
+        sys.exit(1)

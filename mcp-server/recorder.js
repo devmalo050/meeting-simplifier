@@ -37,6 +37,7 @@ export function startRecording() {
           : '설정 → 개인 정보 → 마이크에서 앱 접근을 허용해주세요.'
       );
     }
+    cleanupTempFiles();
   });
 
   activeRecording = { recording, tempPath, fileStream };

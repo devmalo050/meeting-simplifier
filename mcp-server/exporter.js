@@ -30,7 +30,18 @@ export async function saveMeeting({ title, transcript, minutes, audioPath, forma
         // Continue with fallbackDir — save audio and minutes there
         if (audioPath) {
           const audioExt = path.extname(audioPath) || '.wav';
-          fs.renameSync(audioPath, path.join(fallbackDir, `recording${audioExt}`));
+          const fallbackAudioPath = path.join(fallbackDir, `recording${audioExt}`);
+          try {
+            fs.renameSync(audioPath, fallbackAudioPath);
+          } catch (renameErr) {
+            if (renameErr.code === 'EXDEV') {
+              // Cross-filesystem move: copy then delete
+              fs.copyFileSync(audioPath, fallbackAudioPath);
+              fs.unlinkSync(audioPath);
+            } else {
+              throw renameErr;
+            }
+          }
         }
         const minutesPath = path.join(fallbackDir, `minutes.${format}`);
         if (format === 'md' || format === 'txt') {
@@ -51,7 +62,17 @@ export async function saveMeeting({ title, transcript, minutes, audioPath, forma
   if (audioPath) {
     const audioExt = path.extname(audioPath) || '.wav';
     const finalAudioPath = path.join(meetingDir, `recording${audioExt}`);
-    fs.renameSync(audioPath, finalAudioPath);
+    try {
+      fs.renameSync(audioPath, finalAudioPath);
+    } catch (renameErr) {
+      if (renameErr.code === 'EXDEV') {
+        // Cross-filesystem move: copy then delete
+        fs.copyFileSync(audioPath, finalAudioPath);
+        fs.unlinkSync(audioPath);
+      } else {
+        throw renameErr;
+      }
+    }
   }
 
   // Save minutes file
