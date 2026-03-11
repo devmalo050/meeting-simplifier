@@ -16,10 +16,10 @@ const pythonCmd = getPythonCmd();
 const checks = [
   {
     name: 'sox/rec',
-    command: 'rec --version',
+    command: process.platform === 'win32' ? 'sox --version' : 'rec --version',
     installHint: {
       darwin: 'brew install sox',
-      win32: 'https://sourceforge.net/projects/sox/files/sox/ 에서 직접 설치 후 PATH 추가',
+      win32: 'https://sourceforge.net/projects/sox/files/sox/ 에서 직접 설치 후 PATH 추가\n   설치 확인: sox --version',
     },
   },
   {
