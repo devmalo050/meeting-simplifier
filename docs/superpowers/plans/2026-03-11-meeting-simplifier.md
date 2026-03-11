@@ -10,13 +10,13 @@
 
 **병렬 실행 가이드 (서브에이전트 사용 시):**
 ```
-[Wave 1 — 병렬]  Task 1 (scaffolding) + Task 2 (check-deps)
-[Wave 2 — 병렬]  Task 3 (recorder) + Task 4 (transcriber) + Task 5 (exporter)
-[Wave 3 — 순차]  Task 6 (index.js) → Task 7 (skills) → Task 8 (README+배포) → Task 9 (검증)
+[Wave 1 — 병렬]  Task 1 (scaffolding) + Task 2 (check-deps) + Task 3 (setup hook)
+[Wave 2 — 병렬]  Task 4 (recorder) + Task 5 (transcriber) + Task 6 (exporter)
+[Wave 3 — 순차]  Task 7 (index.js) → Task 8 (skills) → Task 9 (README) → Task 10 (검증)
 ```
 - Wave 2는 Wave 1 완료 후 시작 (package.json, node_modules 필요)
-- Task 6은 Task 3, 4, 5를 모두 import하므로 Wave 2 완료 후 시작
-- Task 7, 8, 9은 순차 실행
+- Task 7은 Task 4, 5, 6을 모두 import하므로 Wave 2 완료 후 시작
+- Task 8, 9, 10은 순차 실행
 
 ---
 
@@ -40,6 +40,9 @@
 | `skills/stop/SKILL.md` | 녹음 중지 + 회의록 생성 skill |
 | `skills/summarize/SKILL.md` | 기존 파일로 회의록 생성 skill |
 | `scripts/check-deps.js` | sox/faster-whisper 설치 검증 스크립트 |
+| `hooks/hooks.json` | SessionStart 훅 — setup 스크립트 자동 실행 |
+| `scripts/setup.sh` | macOS: Python 확인 + faster-whisper 자동 설치 |
+| `scripts/setup.ps1` | Windows: Python 확인 + faster-whisper 자동 설치 |
 
 ---
 
@@ -218,7 +221,153 @@ git commit -m "chore: add dependency check script for sox and faster-whisper"
 
 ---
 
-## Chunk 3: recorder.js — 녹음 모듈
+## Chunk 3: Setup Hook — faster-whisper 자동 설치
+
+### Task 3: hooks/hooks.json + setup 스크립트 (macOS/Windows)
+
+**Files:**
+- Create: `hooks/hooks.json`
+- Create: `scripts/setup.sh`
+- Create: `scripts/setup.ps1`
+
+SessionStart 훅으로 플러그인 로드 시마다 setup 스크립트 실행.
+Python 미설치 시 안내 메시지 출력 후 exit 0 (Claude 세션은 계속 진행).
+faster-whisper 이미 설치된 경우 pip가 즉시 skip하므로 오버헤드 없음.
+
+- [ ] **Step 1: hooks 디렉토리 생성 및 hooks.json 작성**
+
+```bash
+mkdir -p hooks
+```
+
+```json
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/scripts/setup.sh"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+> **Windows 주의:** Windows에서는 `.sh` 대신 `.ps1`을 실행해야 함. OS 분기는 setup.sh 내부에서 처리.
+
+- [ ] **Step 2: scripts/setup.sh 작성 (macOS/Linux + Windows Git Bash)**
+
+```bash
+mkdir -p "${CLAUDE_PLUGIN_ROOT}/scripts"
+```
+
+```bash
+#!/bin/bash
+# scripts/setup.sh — faster-whisper 자동 설치
+
+PYTHON_CMD=""
+
+# Python 명령어 탐색
+for cmd in python3 python; do
+  if command -v "$cmd" &>/dev/null; then
+    PYTHON_CMD="$cmd"
+    break
+  fi
+done
+
+if [ -z "$PYTHON_CMD" ]; then
+  echo "⚠️  Python이 설치되어 있지 않습니다."
+  echo "   macOS: https://python.org 또는 brew install python"
+  echo "   Windows: https://python.org/downloads"
+  echo "   Python 설치 후 Claude를 재시작하면 자동으로 설정됩니다."
+  exit 0
+fi
+
+# faster-whisper 설치 (이미 설치된 경우 pip가 skip)
+"$PYTHON_CMD" -c "import faster_whisper" 2>/dev/null
+if [ $? -ne 0 ]; then
+  echo "📦 faster-whisper를 설치합니다..."
+  "$PYTHON_CMD" -m pip install faster-whisper --quiet
+  if [ $? -ne 0 ]; then
+    echo "❌ faster-whisper 설치 실패. 수동으로 실행하세요: pip install faster-whisper"
+  else
+    echo "✅ faster-whisper 설치 완료"
+  fi
+fi
+```
+
+```bash
+chmod +x "${CLAUDE_PLUGIN_ROOT}/scripts/setup.sh"
+```
+
+- [ ] **Step 3: scripts/setup.ps1 작성 (Windows PowerShell)**
+
+```powershell
+# scripts/setup.ps1 — faster-whisper 자동 설치 (Windows)
+
+$pythonCmd = $null
+
+foreach ($cmd in @("python", "python3")) {
+    if (Get-Command $cmd -ErrorAction SilentlyContinue) {
+        $pythonCmd = $cmd
+        break
+    }
+}
+
+if (-not $pythonCmd) {
+    Write-Host "⚠️  Python이 설치되어 있지 않습니다."
+    Write-Host "   https://python.org/downloads 에서 설치 후 Claude를 재시작하세요."
+    exit 0
+}
+
+$installed = & $pythonCmd -c "import faster_whisper" 2>&1
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "📦 faster-whisper를 설치합니다..."
+    & $pythonCmd -m pip install faster-whisper --quiet
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "❌ faster-whisper 설치 실패. 수동으로 실행하세요: pip install faster-whisper"
+    } else {
+        Write-Host "✅ faster-whisper 설치 완료"
+    }
+}
+```
+
+- [ ] **Step 4: plugin.json에 hooks 등록**
+
+`.claude-plugin/plugin.json`에 `hooks` 필드 추가:
+
+```json
+{
+  "name": "meeting-simplifier",
+  "description": "회의를 녹음하고 Whisper + Claude로 회의록을 자동 생성하는 플러그인",
+  "version": "1.0.0",
+  "author": {
+    "name": "ain",
+    "url": "https://github.com/ain"
+  },
+  "repository": "https://github.com/ain/meeting-simplifier",
+  "homepage": "https://github.com/ain/meeting-simplifier#readme",
+  "license": "MIT",
+  "keywords": ["meeting", "recording", "transcription", "whisper", "minutes", "회의록"],
+  "hooks": "./hooks/hooks.json"
+}
+```
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add hooks/hooks.json scripts/setup.sh scripts/setup.ps1 .claude-plugin/plugin.json
+git commit -m "feat: add SessionStart hook to auto-install faster-whisper"
+```
+
+---
+
+## Chunk 4: recorder.js — 녹음 모듈
 
 ### Task 3: 마이크 녹음 모듈 작성
 
@@ -315,9 +464,9 @@ git commit -m "feat: add recorder module with start/stop and cleanup"
 
 ---
 
-## Chunk 4: transcriber.js — Whisper STT 모듈
+## Chunk 5: transcriber.js — Whisper STT 모듈
 
-### Task 4: faster-whisper subprocess 호출 모듈
+### Task 5: faster-whisper subprocess 호출 모듈
 
 **Files:**
 - Create: `mcp-server/transcriber.js`
@@ -474,7 +623,7 @@ git commit -m "feat: add transcriber module with faster-whisper subprocess"
 
 ---
 
-## Chunk 5: exporter.js — 파일 저장 모듈
+## Chunk 6: exporter.js — 파일 저장 모듈
 
 ### Task 5: 회의록 파일 저장 모듈 (md/txt/docx)
 
@@ -567,7 +716,7 @@ git commit -m "feat: add exporter module for md/txt/docx output"
 
 ---
 
-## Chunk 6: MCP 서버 진입점
+## Chunk 7: MCP 서버 진입점
 
 ### Task 6: index.js — MCP 서버 및 도구 등록
 
@@ -697,7 +846,7 @@ git commit -m "feat: add MCP server with all four tools registered"
 
 ---
 
-## Chunk 7: Skills 작성
+## Chunk 8: Skills 작성
 
 ### Task 7: start / stop / summarize SKILL.md
 
@@ -827,7 +976,7 @@ git commit -m "feat: add start/stop/summarize skills with natural language trigg
 
 ---
 
-## Chunk 8: README, LICENSE 및 GitHub 배포
+## Chunk 9: README, LICENSE 및 GitHub 배포
 
 ### Task 8: README.md, LICENSE, GitHub 배포
 
@@ -941,9 +1090,9 @@ git commit -m "docs: add README and MIT license for marketplace publishing"
 
 ---
 
-## Chunk 9: 통합 검증
+## Chunk 10: 통합 검증
 
-### Task 8: 전체 플러그인 동작 검증
+### Task 10: 전체 플러그인 동작 검증
 
 **Files:**
 - 없음 (기존 파일 검증)
