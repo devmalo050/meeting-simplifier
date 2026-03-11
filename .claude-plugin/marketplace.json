@@ -1,5 +1,4 @@
 {
-  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "meeting-simplifier",
   "description": "회의를 녹음하고 Whisper + Claude로 회의록을 자동 생성하는 플러그인",
   "owner": {
@@ -11,12 +10,11 @@
       "name": "meeting-simplifier",
       "description": "회의를 녹음하고 Whisper + Claude로 회의록을 자동 생성하는 플러그인",
       "version": "1.0.0",
+      "source": "./",
       "author": {
-        "name": "ain"
-      },
-      "source": ".",
-      "category": "productivity",
-      "homepage": "https://github.com/devmalo050/meeting-simplifier"
+        "name": "ain",
+        "email": ""
+      }
     }
   ]
 }
