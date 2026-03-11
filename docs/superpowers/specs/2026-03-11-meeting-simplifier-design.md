@@ -59,8 +59,44 @@ meeting-simplifier/
 |------|------|
 | `meeting_record_start` | 마이크 녹음 시작 |
 | `meeting_record_stop` | 녹음 중지, WAV 파일 경로 반환 |
-| `meeting_transcribe` | WAV → 텍스트 (Whisper large, 자동 언어 감지) |
+| `meeting_transcribe` | WAV/MP3/M4A → 텍스트 (Whisper large, 자동 언어 감지) |
 | `meeting_save` | 회의 제목 디렉토리 생성 후 녹음파일 + 회의록 저장 |
+
+### 도구 파라미터 & 반환값 스키마
+
+```
+meeting_record_start()
+  → { ok: true } | { error: string }
+
+meeting_record_stop()
+  → { audio_path: string } | { error: string }
+  // error 케이스: "no active recording"
+
+meeting_transcribe({ audio_path: string })
+  → { transcript: string, language: "ko"|"en" } | { error: string }
+  // 지원 입력 포맷: WAV, MP3, M4A
+  // Whisper large-v3 사용
+  // 모델 캐시: ~/.cache/huggingface/ (약 3GB, 최초 실행 시 다운로드)
+  // 1시간+ 녹음: 10분 청크로 분할, 30초 오버랩, 순서대로 재결합
+
+meeting_save({
+  title: string,        // Claude가 생성한 회의 제목
+  transcript: string,   // Whisper 원문
+  minutes: string,      // Claude가 생성한 회의록 본문
+  audio_path: string,   // 임시 WAV 경로
+  format: "md"|"txt"|"docx"
+})
+  → { saved_dir: string } | { error: string }
+```
+
+### MCP 서버 상태 관리
+녹음은 프로세스 내 전역 변수로 상태 유지:
+```js
+let activeRecording = null; // { stream, tempPath } | null
+```
+- `start` 호출 시 이미 녹음 중이면 에러 반환
+- `stop` 호출 시 녹음 없으면 에러 반환
+- MCP 서버 재시작 시 임시 파일 정리 후 상태 초기화
 
 ### 녹음
 - 라이브러리: `node-record-lpcm16`
@@ -128,7 +164,10 @@ meeting-simplifier/
 (Whisper 원문 그대로)
 ```
 
-**Speaker Diarization:** Whisper는 화자 구분 미지원. Claude가 트랜스크립트 문맥으로 화자 추정. 향후 `pyannote-audio` 연동 확장 포인트 유지.
+**Speaker Diarization:** Whisper는 화자 구분 미지원. Claude가 트랜스크립트 문맥으로 화자 추정.
+- 단일 화자가 명확한 경우 발화 내용 섹션 생략
+- 화자 구분이 불확실한 경우 "화자 구분 불가" 명시, 섹션 생략
+- 향후 `pyannote-audio` 연동 확장 포인트 유지
 
 ---
 
@@ -150,7 +189,7 @@ meeting-simplifier/
 |------|--------|-----------|------|
 | `output_dir` | `~/Documents/meetings` | ✅ | 회의록 저장 위치 |
 | `output_format` | `md` | ✅ (`md`/`txt`/`docx`) | 출력 포맷 |
-| `output_language` | `auto` | ✅ (`auto`/`ko`/`en`) | 회의록 작성 언어 |
+| `output_language` | `auto` | ✅ (`auto`/`ko`/`en`) | 회의록 작성 언어 (`auto`=트랜스크립트 주 언어 사용) |
 | `whisper_model` | `large` | ❌ 고정 | Whisper 모델 |
 
 ---
@@ -160,9 +199,38 @@ meeting-simplifier/
 | 의존성 | macOS | Windows |
 |--------|-------|---------|
 | Node.js 18+ | `brew install node` | winget/공식 사이트 |
-| sox | `brew install sox` | `choco install sox` |
+| sox | `brew install sox` | `choco install sox` + lame codec 별도 설치 필요 |
 | Python 3.8+ | 기본 설치 | 공식 사이트 |
 | faster-whisper | `pip install faster-whisper` | `pip install faster-whisper` |
+
+**Windows sox 주의사항:** Chocolatey의 sox는 `rec` 바이너리가 누락되는 경우가 있음. [공식 sox 바이너리](https://sourceforge.net/projects/sox/files/sox/) 직접 설치를 권장. 설치 검증: `rec --version` 실행 확인.
+
+**Whisper 모델 다운로드:** 최초 실행 시 `large-v3` 모델(약 3GB)이 `~/.cache/huggingface/`에 자동 다운로드됨. 초기 실행은 네트워크 환경에 따라 수 분 소요.
+
+## 플러그인 설정 파일
+
+### `.claude-plugin/plugin.json`
+```json
+{
+  "name": "meeting-simplifier",
+  "description": "회의 녹음 및 회의록 자동 생성",
+  "version": "1.0.0",
+  "author": { "name": "ain" }
+}
+```
+
+### `.mcp.json`
+```json
+{
+  "mcpServers": {
+    "meeting-simplifier": {
+      "command": "node",
+      "args": ["mcp-server/index.js"],
+      "env": {}
+    }
+  }
+}
+```
 
 ---
 
@@ -171,12 +239,14 @@ meeting-simplifier/
 | 상황 | 처리 방식 |
 |------|-----------|
 | 마이크 접근 권한 없음 | 명확한 에러 메시지 + OS별 권한 설정 안내 |
-| `sox` 미설치 | 설치 방법 안내 메시지 |
+| `sox`/`rec` 미설치 | 설치 방법 안내 메시지 |
 | `faster-whisper` 미설치 | 설치 방법 안내 메시지 |
 | 녹음 중 중단 (Ctrl+C 등) | 임시 파일 정리 후 종료 |
 | 트랜스크립트 결과 빈 값 | "음성이 감지되지 않았습니다" 안내 |
 | 파일 저장 권한 없음 | 대체 경로 제안 (바탕화면 등) |
-| 긴 녹음 (1시간+) | Whisper 청크 단위 분할 처리 |
+| 긴 녹음 (1시간+) | 10분 청크 분할 처리, 각 청크 완료 시 진행 상황 보고 |
+| 이미 녹음 중에 start 재호출 | "이미 녹음 중입니다" 에러 반환 |
+| 녹음 없이 stop 호출 | "진행 중인 녹음이 없습니다" 에러 반환 |
 
 ---
 
