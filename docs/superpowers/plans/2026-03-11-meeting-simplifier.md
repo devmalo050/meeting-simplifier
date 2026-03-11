@@ -932,14 +932,7 @@ SOFTWARE.
 MIT
 ```
 
-- [ ] **Step 3: GitHub 리포지토리 생성 및 푸시**
-
-```bash
-git remote add origin https://github.com/ain/meeting-simplifier.git
-git push -u origin main
-```
-
-- [ ] **Step 4: Commit**
+- [ ] **Step 3: Commit**
 
 ```bash
 git add README.md LICENSE
