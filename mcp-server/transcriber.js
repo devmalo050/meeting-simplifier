@@ -36,8 +36,10 @@ export async function transcribeAudio(audioPath, onProgress) {
 
       try {
         const result = JSON.parse(stdout.trim());
-        if (!result.transcript) {
-          resolve({ transcript: '', language: 'ko', empty: true });
+        if (result.error) {
+          reject(new Error(result.error));
+        } else if (!result.transcript || result.transcript.trim() === '') {
+          reject(new Error('음성이 감지되지 않았습니다.'));
         } else {
           resolve(result);
         }
