@@ -281,9 +281,11 @@ for cmd in python3 python; do
 done
 
 if [ -z "$PYTHON_CMD" ]; then
-  echo "⚠️  Python이 설치되어 있지 않습니다."
-  echo "   macOS: https://python.org 또는 brew install python"
-  echo "   Windows: https://python.org/downloads"
+  echo "⚠️  [meeting-simplifier] Python이 설치되어 있지 않습니다."
+  echo "   회의 녹음은 가능하지만, 음성 변환 및 회의록 생성이 작동하지 않습니다."
+  echo "   설치 방법:"
+  echo "     macOS: brew install python 또는 https://python.org"
+  echo "     Windows: https://python.org/downloads"
   echo "   Python 설치 후 Claude를 재시작하면 자동으로 설정됩니다."
   exit 0
 fi
@@ -320,7 +322,8 @@ foreach ($cmd in @("python", "python3")) {
 }
 
 if (-not $pythonCmd) {
-    Write-Host "⚠️  Python이 설치되어 있지 않습니다."
+    Write-Host "⚠️  [meeting-simplifier] Python이 설치되어 있지 않습니다."
+    Write-Host "   회의 녹음은 가능하지만, 음성 변환 및 회의록 생성이 작동하지 않습니다."
     Write-Host "   https://python.org/downloads 에서 설치 후 Claude를 재시작하세요."
     exit 0
 }
