@@ -283,10 +283,22 @@ done
 if [ -z "$PYTHON_CMD" ]; then
   echo "⚠️  [meeting-simplifier] Python이 설치되어 있지 않습니다."
   echo "   회의 녹음은 가능하지만, 음성 변환 및 회의록 생성이 작동하지 않습니다."
+  echo "   Python 3.9 이상이 필요합니다."
   echo "   설치 방법:"
   echo "     macOS: brew install python 또는 https://python.org"
   echo "     Windows: https://python.org/downloads"
   echo "   Python 설치 후 Claude를 재시작하면 자동으로 설정됩니다."
+  exit 0
+fi
+
+# Python 버전 확인 (3.9 이상 필요)
+PY_VERSION=$("$PYTHON_CMD" -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
+PY_MAJOR=$("$PYTHON_CMD" -c "import sys; print(sys.version_info.major)")
+PY_MINOR=$("$PYTHON_CMD" -c "import sys; print(sys.version_info.minor)")
+
+if [ "$PY_MAJOR" -lt 3 ] || { [ "$PY_MAJOR" -eq 3 ] && [ "$PY_MINOR" -lt 9 ]; }; then
+  echo "⚠️  [meeting-simplifier] Python $PY_VERSION 이 감지되었지만 3.9 이상이 필요합니다."
+  echo "   https://python.org/downloads 에서 최신 버전을 설치해주세요."
   exit 0
 fi
 
@@ -324,7 +336,19 @@ foreach ($cmd in @("python", "python3")) {
 if (-not $pythonCmd) {
     Write-Host "⚠️  [meeting-simplifier] Python이 설치되어 있지 않습니다."
     Write-Host "   회의 녹음은 가능하지만, 음성 변환 및 회의록 생성이 작동하지 않습니다."
-    Write-Host "   https://python.org/downloads 에서 설치 후 Claude를 재시작하세요."
+    Write-Host "   Python 3.9 이상이 필요합니다: https://python.org/downloads"
+    Write-Host "   Python 설치 후 Claude를 재시작하면 자동으로 설정됩니다."
+    exit 0
+}
+
+# Python 버전 확인 (3.9 이상 필요)
+$pyVersion = & $pythonCmd -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')"
+$pyMajor = & $pythonCmd -c "import sys; print(sys.version_info.major)"
+$pyMinor = & $pythonCmd -c "import sys; print(sys.version_info.minor)"
+
+if ([int]$pyMajor -lt 3 -or ([int]$pyMajor -eq 3 -and [int]$pyMinor -lt 9)) {
+    Write-Host "⚠️  [meeting-simplifier] Python $pyVersion 이 감지되었지만 3.9 이상이 필요합니다."
+    Write-Host "   https://python.org/downloads 에서 최신 버전을 설치해주세요."
     exit 0
 }
 
@@ -1037,8 +1061,8 @@ SOFTWARE.
 |--------|-------|---------|
 | Node.js 18+ | `brew install node` | [nodejs.org](https://nodejs.org) |
 | sox | `brew install sox` | [sourceforge.net/projects/sox](https://sourceforge.net/projects/sox/files/sox/) |
-| Python 3.8+ | 기본 설치 | [python.org](https://python.org) |
-| faster-whisper | `pip install faster-whisper` | `pip install faster-whisper` |
+| Python 3.9+ | 기본 설치 | [python.org](https://python.org/downloads) |
+| faster-whisper | 플러그인 로드 시 자동 설치 | 플러그인 로드 시 자동 설치 |
 
 > **참고:** 최초 실행 시 Whisper large-v3 모델(약 3GB)이 자동 다운로드됩니다.
 
