@@ -8,6 +8,16 @@
 
 **Tech Stack:** Node.js 18+, @modelcontextprotocol/sdk, node-record-lpcm16, sox, faster-whisper (Python), docx (npm)
 
+**병렬 실행 가이드 (서브에이전트 사용 시):**
+```
+[Wave 1 — 병렬]  Task 1 (scaffolding) + Task 2 (check-deps)
+[Wave 2 — 병렬]  Task 3 (recorder) + Task 4 (transcriber) + Task 5 (exporter)
+[Wave 3 — 순차]  Task 6 (index.js) → Task 7 (skills) → Task 8 (검증)
+```
+- Wave 2는 Wave 1 완료 후 시작 (package.json, node_modules 필요)
+- Task 6은 Task 3, 4, 5를 모두 import하므로 Wave 2 완료 후 시작
+- Task 7, 8은 순차 실행
+
 ---
 
 ## File Map
