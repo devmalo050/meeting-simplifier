@@ -1,0 +1,7 @@
+{
+  "meeting-simplifier": {
+    "output_dir": "~/Documents/meetings",
+    "output_format": "md",
+    "output_language": "auto"
+  }
+}

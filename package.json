@@ -1,0 +1,16 @@
+{
+  "name": "meeting-simplifier",
+  "version": "1.0.0",
+  "description": "Claude 플러그인 — 회의 녹음 및 회의록 자동 생성",
+  "type": "module",
+  "main": "mcp-server/index.js",
+  "scripts": {
+    "start": "node mcp-server/index.js",
+    "check-deps": "node scripts/check-deps.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "node-record-lpcm16": "^1.0.1",
+    "docx": "^8.5.0"
+  }
+}
