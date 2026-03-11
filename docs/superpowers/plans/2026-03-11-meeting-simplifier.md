@@ -12,11 +12,11 @@
 ```
 [Wave 1 — 병렬]  Task 1 (scaffolding) + Task 2 (check-deps)
 [Wave 2 — 병렬]  Task 3 (recorder) + Task 4 (transcriber) + Task 5 (exporter)
-[Wave 3 — 순차]  Task 6 (index.js) → Task 7 (skills) → Task 8 (검증)
+[Wave 3 — 순차]  Task 6 (index.js) → Task 7 (skills) → Task 8 (README+배포) → Task 9 (검증)
 ```
 - Wave 2는 Wave 1 완료 후 시작 (package.json, node_modules 필요)
 - Task 6은 Task 3, 4, 5를 모두 import하므로 Wave 2 완료 후 시작
-- Task 7, 8은 순차 실행
+- Task 7, 8, 9은 순차 실행
 
 ---
 
@@ -34,6 +34,8 @@
 | `mcp-server/transcribe.py` | faster-whisper Python 헬퍼 스크립트 |
 | `mcp-server/exporter.js` | md/txt/docx 파일 저장, 디렉토리 생성 |
 | `.gitignore` | node_modules, 임시 WAV 파일 제외 |
+| `README.md` | 설치 방법, 사용법, 요구사항 문서 |
+| `LICENSE` | MIT 라이선스 |
 | `skills/start/SKILL.md` | 녹음 시작 skill |
 | `skills/stop/SKILL.md` | 녹음 중지 + 회의록 생성 skill |
 | `skills/summarize/SKILL.md` | 기존 파일로 회의록 생성 skill |
@@ -81,20 +83,29 @@ mkdir -p .claude-plugin
 ```json
 {
   "name": "meeting-simplifier",
-  "description": "회의 녹음 및 회의록 자동 생성",
+  "description": "회의를 녹음하고 Whisper + Claude로 회의록을 자동 생성하는 플러그인",
   "version": "1.0.0",
-  "author": { "name": "ain" }
+  "author": {
+    "name": "ain",
+    "url": "https://github.com/ain"
+  },
+  "repository": "https://github.com/ain/meeting-simplifier",
+  "homepage": "https://github.com/ain/meeting-simplifier#readme",
+  "license": "MIT",
+  "keywords": ["meeting", "recording", "transcription", "whisper", "minutes", "회의록"]
 }
 ```
 
 - [ ] **Step 3: .mcp.json 생성**
+
+`${CLAUDE_PLUGIN_ROOT}` 사용 — 플러그인이 어디에 설치되든 올바른 경로를 가리킴.
 
 ```json
 {
   "mcpServers": {
     "meeting-simplifier": {
       "command": "node",
-      "args": ["mcp-server/index.js"],
+      "args": ["${CLAUDE_PLUGIN_ROOT}/mcp-server/index.js"],
       "env": {}
     }
   }
@@ -816,7 +827,128 @@ git commit -m "feat: add start/stop/summarize skills with natural language trigg
 
 ---
 
-## Chunk 8: 통합 검증
+## Chunk 8: README, LICENSE 및 GitHub 배포
+
+### Task 8: README.md, LICENSE, GitHub 배포
+
+**Files:**
+- Create: `README.md`
+- Create: `LICENSE`
+
+- [ ] **Step 1: LICENSE 생성 (MIT)**
+
+```
+MIT License
+
+Copyright (c) 2026 ain
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
+- [ ] **Step 2: README.md 생성**
+
+```markdown
+# meeting-simplifier
+
+회의를 녹음하고 Whisper + Claude로 회의록을 자동 생성하는 Claude Code 플러그인.
+
+## 기능
+
+- 마이크 녹음 시작/중지
+- Whisper large-v3으로 한국어/영어 자동 음성 인식
+- Claude로 회의록 자동 생성 (요약, 상세내용, 결정사항, 액션아이템, 트랜스크립트)
+- md / txt / docx 포맷 저장
+- 자연어 트리거 지원 ("녹음 시작해줘", "회의 끝났어" 등)
+- macOS / Windows 지원
+
+## 설치
+
+### 1. 사전 요구사항
+
+| 의존성 | macOS | Windows |
+|--------|-------|---------|
+| Node.js 18+ | `brew install node` | [nodejs.org](https://nodejs.org) |
+| sox | `brew install sox` | [sourceforge.net/projects/sox](https://sourceforge.net/projects/sox/files/sox/) |
+| Python 3.8+ | 기본 설치 | [python.org](https://python.org) |
+| faster-whisper | `pip install faster-whisper` | `pip install faster-whisper` |
+
+> **참고:** 최초 실행 시 Whisper large-v3 모델(약 3GB)이 자동 다운로드됩니다.
+
+### 2. 플러그인 설치
+
+```bash
+/plugin marketplace add ain/meeting-simplifier
+/plugin install meeting-simplifier@ain-meeting-simplifier
+```
+
+## 사용법
+
+### 명령어
+
+| 명령어 | 동작 |
+|--------|------|
+| `/meeting-simplifier:start` | 녹음 시작 |
+| `/meeting-simplifier:stop` | 녹음 중지 + 회의록 생성 |
+| `/meeting-simplifier:summarize [파일경로]` | 기존 파일로 회의록 생성 |
+
+### 자연어
+
+- "회의 녹음 시작해줘" / "start recording"
+- "녹음 끝" / "회의 끝났어" / "end meeting"
+- "이 파일 회의록으로 정리해줘"
+
+## 설정
+
+`settings.json`에서 변경 가능:
+
+```json
+{
+  "meeting-simplifier": {
+    "output_dir": "~/Documents/meetings",
+    "output_format": "md",
+    "output_language": "auto"
+  }
+}
+```
+
+## 라이선스
+
+MIT
+```
+
+- [ ] **Step 3: GitHub 리포지토리 생성 및 푸시**
+
+```bash
+git remote add origin https://github.com/ain/meeting-simplifier.git
+git push -u origin main
+```
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add README.md LICENSE
+git commit -m "docs: add README and MIT license for marketplace publishing"
+```
+
+---
+
+## Chunk 9: 통합 검증
 
 ### Task 8: 전체 플러그인 동작 검증
 
