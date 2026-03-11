@@ -57,6 +57,9 @@ export function stopRecording() {
       resolve({ audio_path: tempPath });
     });
     recording.stop();
+    // Explicitly end the writable stream in case node-record-lpcm16
+    // does not propagate 'end' through the pipe on all versions
+    recording.stream().once('end', () => fileStream.end());
   });
 }
 

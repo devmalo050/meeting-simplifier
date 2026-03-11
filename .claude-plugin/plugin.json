@@ -10,5 +10,5 @@
   "homepage": "https://github.com/ain/meeting-simplifier#readme",
   "license": "MIT",
   "keywords": ["meeting", "recording", "transcription", "whisper", "minutes", "회의록"],
-  "hooks": "./hooks/hooks.json"
+  "hooks": "../hooks/hooks.json"
 }
