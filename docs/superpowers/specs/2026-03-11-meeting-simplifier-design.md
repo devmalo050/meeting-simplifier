@@ -128,7 +128,26 @@ let activeRecording = null; // { stream, tempPath } | null
 | `stop` | `/meeting-simplifier:stop` | 녹음 중지 → 트랜스크립트 → 회의록 생성 → 저장 |
 | `summarize` | `/meeting-simplifier:summarize [파일경로]` | 기존 오디오/텍스트 파일로 회의록 생성 |
 
-자연어로도 트리거 가능 (예: "회의 녹음 시작해줘", "녹음 끝내고 회의록 만들어줘")
+### 자연어 트리거 패턴
+
+Skill의 `description` 필드에 다양한 트리거 패턴을 정의해 Claude가 자동 인식하도록 함.
+
+**`start` skill 트리거 예시 (한국어):**
+- "회의 녹음 시작해줘 / 해" / "녹음 시작" / "녹음해줘"
+- "회의 시작할게" / "미팅 시작해" / "회의 시작"
+- "지금부터 회의 녹음" / "회의 들어갈게"
+- "record meeting" / "start recording" / "start meeting"
+
+**`stop` skill 트리거 예시:**
+- "녹음 끝" / "녹음 종료" / "녹음 멈춰" / "녹음 중지"
+- "회의 끝났어" / "미팅 종료" / "회의 마칠게"
+- "회의록 만들어줘" / "회의록 정리해줘"
+- "stop recording" / "end meeting" / "finish recording"
+
+**`summarize` skill 트리거 예시:**
+- "이 파일 회의록으로 정리해줘" / "녹음 파일 분석해줘"
+- "파일 첨부할게, 회의록 만들어줘"
+- "summarize this recording" / "make minutes from this file"
 
 ---
 
