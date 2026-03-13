@@ -1,14 +1,8 @@
 {
   "name": "meeting-simplifier",
   "description": "회의를 녹음하고 Whisper + Claude로 회의록을 자동 생성하는 플러그인",
-  "version": "1.0.0",
   "author": {
     "name": "ain",
-    "url": "https://github.com/ain"
-  },
-  "repository": "https://github.com/ain/meeting-simplifier",
-  "homepage": "https://github.com/ain/meeting-simplifier#readme",
-  "license": "MIT",
-  "keywords": ["meeting", "recording", "transcription", "whisper", "minutes", "회의록"],
-  "hooks": "../hooks/hooks.json"
+    "email": ""
+  }
 }
