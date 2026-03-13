@@ -4,10 +4,29 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 
-let activeRecording = null; // { recording, tempPath, fileStream }
+const STATE_FILE = path.join(os.tmpdir(), 'meeting-simplifier-state.json');
+
+function readState() {
+  try {
+    return JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+function writeState(state) {
+  fs.writeFileSync(STATE_FILE, JSON.stringify(state), 'utf8');
+}
+
+function clearState() {
+  try { fs.unlinkSync(STATE_FILE); } catch {}
+}
+
+// 프로세스별 인메모리 recording 핸들 (파일로 공유 불가한 부분)
+let activeRecording = null;
 
 export function startRecording() {
-  if (activeRecording) {
+  if (readState()) {
     return { error: '이미 녹음 중입니다. 먼저 녹음을 중지해주세요.' };
   }
 
@@ -41,34 +60,61 @@ export function startRecording() {
   });
 
   activeRecording = { recording, tempPath, fileStream };
+  writeState({ tempPath, pid: process.pid });
   return { ok: true };
 }
 
 export function stopRecording() {
-  if (!activeRecording) {
+  const state = readState();
+
+  if (!state) {
     return Promise.resolve({ error: '진행 중인 녹음이 없습니다.' });
   }
 
-  const { recording, tempPath, fileStream } = activeRecording;
+  const { tempPath, pid } = state;
 
-  return new Promise((resolve) => {
-    fileStream.on('finish', () => {
-      activeRecording = null;
-      resolve({ audio_path: tempPath });
+  // 같은 프로세스에서 녹음 중인 경우 — 정상 종료
+  if (activeRecording && pid === process.pid) {
+    const { recording, fileStream } = activeRecording;
+
+    return new Promise((resolve) => {
+      fileStream.on('finish', () => {
+        activeRecording = null;
+        clearState();
+        resolve({ audio_path: tempPath });
+      });
+      recording.stop();
+      recording.stream().once('end', () => fileStream.end());
     });
-    recording.stop();
-    // Explicitly end the writable stream in case node-record-lpcm16
-    // does not propagate 'end' through the pipe on all versions
-    recording.stream().once('end', () => fileStream.end());
+  }
+
+  // 다른 프로세스에서 녹음 중인 경우 — 해당 프로세스에 SIGTERM 보내고 파일 대기
+  clearState();
+  try { process.kill(pid, 'SIGTERM'); } catch {}
+
+  // 파일이 완성될 때까지 최대 3초 대기
+  return new Promise((resolve) => {
+    let waited = 0;
+    const interval = setInterval(() => {
+      waited += 200;
+      const exists = fs.existsSync(tempPath) && fs.statSync(tempPath).size > 0;
+      if (exists || waited >= 3000) {
+        clearInterval(interval);
+        resolve(exists ? { audio_path: tempPath } : { error: '녹음 파일을 찾을 수 없습니다.' });
+      }
+    }, 200);
   });
 }
 
 export function cleanupTempFiles() {
+  const state = readState();
   if (activeRecording) {
-    try {
-      activeRecording.recording.stop();
-      fs.unlinkSync(activeRecording.tempPath);
-    } catch {}
+    try { activeRecording.recording.stop(); } catch {}
+    try { fs.unlinkSync(activeRecording.tempPath); } catch {}
     activeRecording = null;
+  }
+  if (state) {
+    try { fs.unlinkSync(state.tempPath); } catch {}
+    clearState();
   }
 }
