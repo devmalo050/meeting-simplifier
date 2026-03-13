@@ -4,5 +4,11 @@
   "author": {
     "name": "ain",
     "email": ""
+  },
+  "mcpServers": {
+    "meeting-simplifier": {
+      "command": "node",
+      "args": ["mcp-server/index.js"]
+    }
   }
 }
