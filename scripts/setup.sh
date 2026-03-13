@@ -1,5 +1,17 @@
 #!/bin/bash
-# scripts/setup.sh — faster-whisper 자동 설치
+# scripts/setup.sh — node_modules 및 faster-whisper 자동 설치
+
+# node_modules 설치 (없을 경우)
+PLUGIN_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+if [ ! -d "$PLUGIN_ROOT/node_modules" ]; then
+  echo "📦 npm 패키지를 설치합니다..."
+  cd "$PLUGIN_ROOT" && npm install --quiet
+  if [ $? -ne 0 ]; then
+    echo "❌ npm install 실패"
+  else
+    echo "✅ npm install 완료"
+  fi
+fi
 
 PYTHON_CMD=""
 
