@@ -70,3 +70,11 @@ if ! "$VENV_PYTHON" -c "import faster_whisper" 2>/dev/null; then
   "$VENV_PYTHON" -m pip install faster-whisper --quiet
   [ $? -eq 0 ] && echo "✅ faster-whisper 설치 완료" || echo "❌ faster-whisper 설치 실패. 수동으로 실행하세요: pip install faster-whisper"
 fi
+
+# ── 5. Whisper medium 모델 미리 다운로드 ───────────────────────────────────
+MODEL_CACHE="$HOME/.cache/huggingface/hub/models--Systran--faster-whisper-medium"
+if [ ! -d "$MODEL_CACHE" ]; then
+  echo "📦 Whisper medium 모델을 다운로드합니다 (약 1.5GB, 최초 1회)..."
+  "$VENV_PYTHON" -c "from faster_whisper import WhisperModel; WhisperModel('medium', device='cpu', compute_type='int8')" 2>/dev/null
+  [ $? -eq 0 ] && echo "✅ Whisper medium 모델 준비 완료" || echo "⚠️  모델 다운로드 실패 (첫 번째 변환 시 자동 다운로드됩니다)"
+fi
