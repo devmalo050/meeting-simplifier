@@ -25,7 +25,7 @@ server.registerTool('meeting_record_stop', {
 });
 
 server.registerTool('meeting_transcribe', {
-  description: '오디오 파일을 텍스트로 변환합니다 (Whisper small).',
+  description: '오디오 파일을 텍스트로 변환합니다.',
   inputSchema: {
     audio_path: z.string().describe('변환할 오디오 파일 경로 (WAV/MP3/M4A)'),
   },

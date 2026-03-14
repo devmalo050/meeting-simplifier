@@ -44,7 +44,8 @@ def split_wav(path, chunk_secs, overlap_secs):
     return chunks
 
 def transcribe(audio_path):
-    model = WhisperModel("small", device="cpu", compute_type="int8")
+    whisper_model = os.environ.get("WHISPER_MODEL", "small")
+    model = WhisperModel(whisper_model, device="cpu", compute_type="int8")
 
     duration = read_wav_duration(audio_path)
     # Chunk splitting only for WAV files (MP3/M4A handled internally by faster-whisper)

@@ -50,6 +50,9 @@ if [ "$PY_MAJOR" -lt 3 ] || { [ "$PY_MAJOR" -eq 3 ] && [ "$PY_MINOR" -lt 9 ]; };
   exit 0
 fi
 
+# ── Whisper 모델 설정 (start.js에서 WHISPER_MODEL 환경변수로 전달, 없으면 small) ──
+WHISPER_MODEL="${WHISPER_MODEL:-small}"
+
 # ── 4. venv 생성 및 faster-whisper 설치 ────────────────────────────────────
 VENV_DIR="$PLUGIN_ROOT/.venv"
 VENV_PYTHON="$VENV_DIR/bin/python"
@@ -72,9 +75,9 @@ if ! "$VENV_PYTHON" -c "import faster_whisper" 2>/dev/null; then
 fi
 
 # ── 5. Whisper medium 모델 미리 다운로드 ───────────────────────────────────
-MODEL_CACHE="$HOME/.cache/huggingface/hub/models--Systran--faster-whisper-small"
+MODEL_CACHE="$HOME/.cache/huggingface/hub/models--Systran--faster-whisper-${WHISPER_MODEL}"
 if [ ! -d "$MODEL_CACHE" ]; then
-  echo "📦 Whisper small 모델을 다운로드합니다 (약 500MB, 최초 1회)..."
-  "$VENV_PYTHON" -c "from faster_whisper import WhisperModel; WhisperModel('small', device='cpu', compute_type='int8')" 2>/dev/null
-  [ $? -eq 0 ] && echo "✅ Whisper small 모델 준비 완료" || echo "⚠️  모델 다운로드 실패 (첫 번째 변환 시 자동 다운로드됩니다)"
+  echo "📦 Whisper ${WHISPER_MODEL} 모델을 다운로드합니다 (최초 1회)..."
+  "$VENV_PYTHON" -c "from faster_whisper import WhisperModel; WhisperModel('${WHISPER_MODEL}', device='cpu', compute_type='int8')" 2>/dev/null
+  [ $? -eq 0 ] && echo "✅ Whisper ${WHISPER_MODEL} 모델 준비 완료" || echo "⚠️  모델 다운로드 실패 (첫 번째 변환 시 자동 다운로드됩니다)"
 fi
