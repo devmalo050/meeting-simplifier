@@ -8,13 +8,18 @@ import path from 'path';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const pluginRoot = path.join(__dirname, '..');
 
-// setup.sh로 전체 환경 설치 (sox, npm, venv, faster-whisper)
-// .venv가 없으면 초기 설치, 있으면 skip
+// setup.sh로 전체 환경 설치 (sox, npm, venv, faster-whisper, 모델)
+// venv 또는 Whisper 모델이 없으면 setup.sh 실행
+import os from 'os';
+
 const venvPython = process.platform === 'win32'
   ? path.join(pluginRoot, '.venv', 'Scripts', 'python.exe')
   : path.join(pluginRoot, '.venv', 'bin', 'python');
+const modelCache = path.join(os.homedir(), '.cache', 'huggingface', 'hub', 'models--Systran--faster-whisper-small');
 
-if (!existsSync(venvPython)) {
+const needsSetup = !existsSync(venvPython) || !existsSync(modelCache);
+
+if (needsSetup) {
   const setupScript = path.join(pluginRoot, 'scripts', 'setup.sh');
   if (existsSync(setupScript)) {
     try {
@@ -26,21 +31,10 @@ if (!existsSync(venvPython)) {
     } catch (e) {
       process.stderr.write(`[meeting-simplifier] setup 실패: ${e.message}\n`);
     }
-  } else {
-    // setup.sh 없으면 npm install만 fallback
-    if (!existsSync(path.join(pluginRoot, 'node_modules', '@modelcontextprotocol'))) {
-      try {
-        execFileSync('npm', ['install', '--prefer-offline', '--quiet'], {
-          cwd: pluginRoot,
-          stdio: ['ignore', 'ignore', 'inherit'],
-        });
-      } catch (e) {
-        process.stderr.write(`[meeting-simplifier] npm install 실패: ${e.message}\n`);
-      }
-    }
   }
-} else if (!existsSync(path.join(pluginRoot, 'node_modules', '@modelcontextprotocol'))) {
-  // venv는 있지만 node_modules가 없는 경우
+}
+
+if (!existsSync(path.join(pluginRoot, 'node_modules', '@modelcontextprotocol'))) {
   try {
     execFileSync('npm', ['install', '--prefer-offline', '--quiet'], {
       cwd: pluginRoot,
