@@ -9,7 +9,7 @@ description: >
 파일 경로가 없으면 사용자에게 파일 경로를 요청하세요.
 
 파일 확장자에 따라 처리합니다:
-- `.wav`, `.mp3`, `.m4a` → `meeting_transcribe` 도구로 먼저 변환 후 진행
+- `.wav`, `.mp3`, `.m4a` → `meeting_transcribe` 도구로 먼저 변환 후, 결과의 `elapsed_seconds` 값을 사용해 "변환 완료 ({elapsed_seconds}초)"를 사용자에게 알린 뒤 진행
 - `.txt`, `.md` → 파일 내용을 직접 트랜스크립트로 사용
 
 이후 `/meeting-simplifier:stop` skill의 3~6번 단계와 동일하게 진행합니다.
