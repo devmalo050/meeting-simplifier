@@ -1,43 +1,35 @@
 #!/bin/bash
-# scripts/setup.sh — node_modules, sox, faster-whisper 자동 설치
+# scripts/setup.sh — sox, node_modules, faster-whisper(venv) 자동 설치
 
-# SoX 설치 확인 (녹음에 필요)
+PLUGIN_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+
+# ── 1. SoX 설치 (녹음에 필요) ──────────────────────────────────────────────
 if ! command -v rec &>/dev/null; then
   if command -v brew &>/dev/null; then
     echo "📦 SoX를 설치합니다 (brew install sox)..."
     brew install sox --quiet
-    if [ $? -ne 0 ]; then
-      echo "❌ SoX 설치 실패. 수동으로 실행하세요: brew install sox"
-    else
-      echo "✅ SoX 설치 완료"
-    fi
+    [ $? -eq 0 ] && echo "✅ SoX 설치 완료" || echo "❌ SoX 설치 실패. 수동으로 실행하세요: brew install sox"
   elif command -v apt-get &>/dev/null; then
     echo "📦 SoX를 설치합니다 (apt-get)..."
-    sudo apt-get install -y sox libsox-fmt-all --quiet
+    sudo apt-get install -y sox libsox-fmt-all -qq
   elif command -v choco &>/dev/null; then
     echo "📦 SoX를 설치합니다 (choco)..."
     choco install sox --yes --quiet
   else
-    echo "⚠️  SoX가 설치되어 있지 않습니다. 녹음 기능이 작동하지 않습니다."
-    echo "   설치 방법: brew install sox (macOS) / apt install sox (Linux)"
+    echo "⚠️  SoX가 없습니다. 녹음 기능이 작동하지 않습니다."
+    echo "   설치: brew install sox (macOS) / apt install sox (Linux)"
   fi
 fi
 
-# node_modules 설치 (없을 경우)
-PLUGIN_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+# ── 2. node_modules 설치 ───────────────────────────────────────────────────
 if [ ! -d "$PLUGIN_ROOT/node_modules" ]; then
   echo "📦 npm 패키지를 설치합니다..."
   cd "$PLUGIN_ROOT" && npm install --quiet
-  if [ $? -ne 0 ]; then
-    echo "❌ npm install 실패"
-  else
-    echo "✅ npm install 완료"
-  fi
+  [ $? -eq 0 ] && echo "✅ npm install 완료" || echo "❌ npm install 실패"
 fi
 
+# ── 3. Python 확인 ─────────────────────────────────────────────────────────
 PYTHON_CMD=""
-
-# Python 명령어 탐색
 for cmd in python3 python; do
   if command -v "$cmd" &>/dev/null; then
     PYTHON_CMD="$cmd"
@@ -46,35 +38,35 @@ for cmd in python3 python; do
 done
 
 if [ -z "$PYTHON_CMD" ]; then
-  echo "⚠️  [meeting-simplifier] Python이 설치되어 있지 않습니다."
-  echo "   회의 녹음은 가능하지만, 음성 변환 및 회의록 생성이 작동하지 않습니다."
-  echo "   Python 3.9 이상이 필요합니다."
-  echo "   설치 방법:"
-  echo "     macOS: brew install python 또는 https://python.org"
-  echo "     Windows: https://python.org/downloads"
-  echo "   Python 설치 후 Claude를 재시작하면 자동으로 설정됩니다."
+  echo "⚠️  Python이 없습니다. 음성 변환 기능이 작동하지 않습니다."
+  echo "   설치: brew install python (macOS) / https://python.org"
   exit 0
 fi
 
-# Python 버전 확인 (3.9 이상 필요)
-PY_VERSION=$("$PYTHON_CMD" -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
 PY_MAJOR=$("$PYTHON_CMD" -c "import sys; print(sys.version_info.major)")
 PY_MINOR=$("$PYTHON_CMD" -c "import sys; print(sys.version_info.minor)")
-
 if [ "$PY_MAJOR" -lt 3 ] || { [ "$PY_MAJOR" -eq 3 ] && [ "$PY_MINOR" -lt 9 ]; }; then
-  echo "⚠️  [meeting-simplifier] Python $PY_VERSION 이 감지되었지만 3.9 이상이 필요합니다."
-  echo "   https://python.org/downloads 에서 최신 버전을 설치해주세요."
+  echo "⚠️  Python $PY_MAJOR.$PY_MINOR 감지 — 3.9 이상이 필요합니다."
   exit 0
 fi
 
-# faster-whisper 설치 (이미 설치된 경우 pip가 skip)
-"$PYTHON_CMD" -c "import faster_whisper" 2>/dev/null
-if [ $? -ne 0 ]; then
-  echo "📦 faster-whisper를 설치합니다..."
-  "$PYTHON_CMD" -m pip install faster-whisper --quiet
+# ── 4. venv 생성 및 faster-whisper 설치 ────────────────────────────────────
+VENV_DIR="$PLUGIN_ROOT/.venv"
+VENV_PYTHON="$VENV_DIR/bin/python"
+
+if [ ! -f "$VENV_PYTHON" ]; then
+  echo "📦 Python 가상환경을 생성합니다..."
+  "$PYTHON_CMD" -m venv "$VENV_DIR"
   if [ $? -ne 0 ]; then
-    echo "❌ faster-whisper 설치 실패. 수동으로 실행하세요: pip install faster-whisper"
-  else
-    echo "✅ faster-whisper 설치 완료"
+    echo "❌ venv 생성 실패"
+    exit 0
   fi
+  echo "✅ 가상환경 생성 완료"
+fi
+
+# faster-whisper가 venv에 없으면 설치
+if ! "$VENV_PYTHON" -c "import faster_whisper" 2>/dev/null; then
+  echo "📦 faster-whisper를 설치합니다..."
+  "$VENV_PYTHON" -m pip install faster-whisper --quiet
+  [ $? -eq 0 ] && echo "✅ faster-whisper 설치 완료" || echo "❌ faster-whisper 설치 실패. 수동으로 실행하세요: pip install faster-whisper"
 fi

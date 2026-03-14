@@ -3,9 +3,20 @@ import { spawn } from 'child_process';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
+import fs from 'fs';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const PLUGIN_ROOT = path.join(__dirname, '..');
 const PYTHON_SCRIPT = path.join(__dirname, 'transcribe.py');
-const PYTHON_CMD = process.platform === 'win32' ? 'python' : 'python3';
+
+// venv Python 우선 사용 (PEP 668 시스템 패키지 보호 우회)
+function resolvePython() {
+  const venvPython = process.platform === 'win32'
+    ? path.join(PLUGIN_ROOT, '.venv', 'Scripts', 'python.exe')
+    : path.join(PLUGIN_ROOT, '.venv', 'bin', 'python');
+  if (fs.existsSync(venvPython)) return venvPython;
+  return process.platform === 'win32' ? 'python' : 'python3';
+}
+const PYTHON_CMD = resolvePython();
 
 export async function transcribeAudio(audioPath, onProgress) {
   return new Promise((resolve, reject) => {
