@@ -1,6 +1,6 @@
 {
   "name": "meeting-simplifier",
-  "version": "1.3.3",
+  "version": "1.3.4",
   "description": "회의를 녹음하고 Whisper + Claude로 회의록을 자동 생성하는 플러그인",
   "author": {
     "name": "ain",

@@ -72,9 +72,9 @@ if ! "$VENV_PYTHON" -c "import faster_whisper" 2>/dev/null; then
 fi
 
 # ── 5. Whisper medium 모델 미리 다운로드 ───────────────────────────────────
-MODEL_CACHE="$HOME/.cache/huggingface/hub/models--Systran--faster-whisper-medium"
+MODEL_CACHE="$HOME/.cache/huggingface/hub/models--Systran--faster-whisper-small"
 if [ ! -d "$MODEL_CACHE" ]; then
-  echo "📦 Whisper medium 모델을 다운로드합니다 (약 1.5GB, 최초 1회)..."
-  "$VENV_PYTHON" -c "from faster_whisper import WhisperModel; WhisperModel('medium', device='cpu', compute_type='int8')" 2>/dev/null
-  [ $? -eq 0 ] && echo "✅ Whisper medium 모델 준비 완료" || echo "⚠️  모델 다운로드 실패 (첫 번째 변환 시 자동 다운로드됩니다)"
+  echo "📦 Whisper small 모델을 다운로드합니다 (약 500MB, 최초 1회)..."
+  "$VENV_PYTHON" -c "from faster_whisper import WhisperModel; WhisperModel('small', device='cpu', compute_type='int8')" 2>/dev/null
+  [ $? -eq 0 ] && echo "✅ Whisper small 모델 준비 완료" || echo "⚠️  모델 다운로드 실패 (첫 번째 변환 시 자동 다운로드됩니다)"
 fi
