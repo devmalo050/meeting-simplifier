@@ -1,5 +1,27 @@
 #!/bin/bash
-# scripts/setup.sh — node_modules 및 faster-whisper 자동 설치
+# scripts/setup.sh — node_modules, sox, faster-whisper 자동 설치
+
+# SoX 설치 확인 (녹음에 필요)
+if ! command -v rec &>/dev/null; then
+  if command -v brew &>/dev/null; then
+    echo "📦 SoX를 설치합니다 (brew install sox)..."
+    brew install sox --quiet
+    if [ $? -ne 0 ]; then
+      echo "❌ SoX 설치 실패. 수동으로 실행하세요: brew install sox"
+    else
+      echo "✅ SoX 설치 완료"
+    fi
+  elif command -v apt-get &>/dev/null; then
+    echo "📦 SoX를 설치합니다 (apt-get)..."
+    sudo apt-get install -y sox libsox-fmt-all --quiet
+  elif command -v choco &>/dev/null; then
+    echo "📦 SoX를 설치합니다 (choco)..."
+    choco install sox --yes --quiet
+  else
+    echo "⚠️  SoX가 설치되어 있지 않습니다. 녹음 기능이 작동하지 않습니다."
+    echo "   설치 방법: brew install sox (macOS) / apt install sox (Linux)"
+  fi
+fi
 
 # node_modules 설치 (없을 경우)
 PLUGIN_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
