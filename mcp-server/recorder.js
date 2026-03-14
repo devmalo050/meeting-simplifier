@@ -22,7 +22,7 @@ function clearState() {
   try { fs.unlinkSync(STATE_FILE); } catch {}
 }
 
-// 프로세스별 인메모리 recording 핸들 (파일로 공유 불가한 부분)
+// 인메모리 recording 핸들 (이 프로세스에서 start한 경우에만 유효)
 let activeRecording = null;
 
 export function startRecording() {
@@ -49,18 +49,19 @@ export function startRecording() {
 
   recording.stream().on('error', (err) => {
     if (err.message.includes('permission') || err.message.includes('access')) {
-      console.error('마이크 접근 권한이 없습니다.');
       console.error(
         process.platform === 'darwin'
-          ? '시스템 환경설정 → 개인 정보 보호 → 마이크에서 터미널 권한을 허용해주세요.'
-          : '설정 → 개인 정보 → 마이크에서 앱 접근을 허용해주세요.'
+          ? '마이크 접근 권한이 없습니다. 시스템 환경설정 → 개인 정보 보호 → 마이크에서 터미널 권한을 허용해주세요.'
+          : '마이크 접근 권한이 없습니다. 설정 → 개인 정보 → 마이크에서 앱 접근을 허용해주세요.'
       );
     }
     cleanupTempFiles();
   });
 
+  // rec 프로세스 PID를 state에 저장 (cross-process stop에 사용)
+  const recPid = recording.process?.pid ?? null;
   activeRecording = { recording, tempPath, fileStream };
-  writeState({ tempPath, pid: process.pid });
+  writeState({ tempPath, serverPid: process.pid, recPid });
   return { ok: true };
 }
 
@@ -71,10 +72,10 @@ export function stopRecording() {
     return Promise.resolve({ error: '진행 중인 녹음이 없습니다.' });
   }
 
-  const { tempPath, pid } = state;
+  const { tempPath, serverPid, recPid } = state;
 
-  // 같은 프로세스에서 녹음 중인 경우 — 정상 종료
-  if (activeRecording && pid === process.pid) {
+  // 같은 프로세스에서 start한 경우 — 정상 종료
+  if (activeRecording && serverPid === process.pid) {
     const { recording, fileStream } = activeRecording;
 
     return new Promise((resolve) => {
@@ -88,19 +89,29 @@ export function stopRecording() {
     });
   }
 
-  // 다른 프로세스에서 녹음 중인 경우 — 해당 프로세스에 SIGTERM 보내고 파일 대기
+  // 다른 프로세스에서 start한 경우 — rec 프로세스를 직접 종료하고 파일 확정 대기
   clearState();
-  try { process.kill(pid, 'SIGTERM'); } catch {}
+  if (recPid) {
+    try { process.kill(recPid, 'SIGTERM'); } catch {}
+  }
+  if (serverPid) {
+    try { process.kill(serverPid, 'SIGTERM'); } catch {}
+  }
 
-  // 파일이 완성될 때까지 최대 3초 대기
+  // 파일이 디스크에 플러시될 때까지 최대 5초 대기
   return new Promise((resolve) => {
     let waited = 0;
     const interval = setInterval(() => {
       waited += 200;
-      const exists = fs.existsSync(tempPath) && fs.statSync(tempPath).size > 0;
-      if (exists || waited >= 3000) {
+      try {
+        const size = fs.existsSync(tempPath) ? fs.statSync(tempPath).size : 0;
+        if (size > 0 || waited >= 5000) {
+          clearInterval(interval);
+          resolve(size > 0 ? { audio_path: tempPath } : { error: '녹음 파일을 찾을 수 없습니다.' });
+        }
+      } catch {
         clearInterval(interval);
-        resolve(exists ? { audio_path: tempPath } : { error: '녹음 파일을 찾을 수 없습니다.' });
+        resolve({ error: '녹음 파일을 찾을 수 없습니다.' });
       }
     }, 200);
   });
