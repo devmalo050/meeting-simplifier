@@ -16,9 +16,8 @@ function resolvePython() {
   if (fs.existsSync(venvPython)) return venvPython;
   return process.platform === 'win32' ? 'python' : 'python3';
 }
-const PYTHON_CMD = resolvePython();
-
 export async function transcribeAudio(audioPath, onProgress) {
+  const PYTHON_CMD = resolvePython();
   return new Promise((resolve, reject) => {
     const proc = spawn(PYTHON_CMD, [PYTHON_SCRIPT, audioPath]);
     let stdout = '';

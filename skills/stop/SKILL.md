@@ -51,8 +51,8 @@ description: >
    - `transcript`: Whisper 원문
    - `minutes`: 위에서 작성한 회의록 본문
    - `audio_path`: 녹음 파일 경로
-   - `format`: 사용자 설정값 (없으면 "md")
-   - `output_dir`: 사용자 설정값 (없으면 "~/Documents/meetings")
+   - `format`: `${CLAUDE_PLUGIN_ROOT}/settings.json`의 `meeting-simplifier.output_format` 값 (없으면 "md")
+   - `output_dir`: `${CLAUDE_PLUGIN_ROOT}/settings.json`의 `meeting-simplifier.output_dir` 값 (없으면 "~/Documents/meetings")
 
 6. 완료 후 사용자에게 알립니다:
 "회의록이 저장되었습니다: {saved_dir}"
