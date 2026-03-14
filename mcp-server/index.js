@@ -31,10 +31,13 @@ server.registerTool('meeting_transcribe', {
   },
 }, async ({ audio_path }) => {
   try {
+    const startTime = Date.now();
     const result = await transcribeAudio(audio_path, (current, total) => {
       process.stderr.write(`변환 중... ${current}/${total} 청크 완료\n`);
     });
-    return { content: [{ type: 'text', text: JSON.stringify(result) }] };
+    const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+    process.stderr.write(`변환 완료 (${elapsed}초)\n`);
+    return { content: [{ type: 'text', text: JSON.stringify({ ...result, elapsed_seconds: parseFloat(elapsed) }) }] };
   } catch (err) {
     return { content: [{ type: 'text', text: JSON.stringify({ error: err.message }) }] };
   }
