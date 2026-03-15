@@ -51,7 +51,7 @@ description: >
    - `title`: 생성한 회의 제목
    - `transcript`: Whisper 원문
    - `minutes`: 위에서 작성한 회의록 본문
-   - `audio_path`: 녹음 파일 경로
+   - `audio_path`: **1단계** `meeting_record_stop` 결과의 `audio_path` (절대 다른 값 사용 금지)
    - `format`: `${CLAUDE_PLUGIN_ROOT}/settings.json`의 `meeting-simplifier.output_format` 값 (없으면 "md")
    - `output_dir`: `${CLAUDE_PLUGIN_ROOT}/settings.json`의 `meeting-simplifier.output_dir` 값 (없으면 "~/Documents/meetings")
 
