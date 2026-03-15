@@ -102,7 +102,15 @@ export function stopRecording() {
     const { recording, fileStream } = activeRecording;
 
     return new Promise((resolve) => {
+      const timeout = setTimeout(() => {
+        activeRecording = null;
+        clearState();
+        saveLastAudioPath(tempPath);
+        resolve({ audio_path: tempPath, duration_seconds: duration });
+      }, 10000); // 10초 타임아웃
+
       fileStream.on('finish', () => {
+        clearTimeout(timeout);
         activeRecording = null;
         clearState();
         saveLastAudioPath(tempPath);

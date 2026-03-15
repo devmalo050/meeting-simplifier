@@ -36,7 +36,7 @@ def fix_wav_header(path):
                 return path, False
             # 헤더 불일치 — 실제 데이터로 새 WAV 파일 생성
             f.rewind()
-            raw = f.readframes(params.nframes)
+            raw = f.readframes(actual_frames)  # 헤더가 아닌 실제 프레임 수만큼 읽기
     except Exception:
         return path, False
 

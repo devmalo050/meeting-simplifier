@@ -40,9 +40,9 @@ export async function saveMeeting({ title, transcript, minutes, audioPath, forma
   const resolvedBase = resolvePath(outputDir);
   const now = new Date();
   const date = now.toISOString().slice(0, 10); // YYYY-MM-DD
-  const hhmm = now.toTimeString().slice(0, 5).replace(':', ''); // HHmm
+  const hhmmss = now.toTimeString().slice(0, 8).replace(/:/g, ''); // HHmmss
   const safeTitle = sanitizeDirName(title);
-  const dirName = sanitizeDirName(`${date}-${hhmm}-${title}`);
+  const dirName = sanitizeDirName(`${date}-${hhmmss}-${title}`);
   const meetingDir = path.join(resolvedBase, dirName);
 
   try {
