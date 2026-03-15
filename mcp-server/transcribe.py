@@ -45,6 +45,7 @@ def split_wav(path, chunk_secs, overlap_secs):
 
 def transcribe(audio_path):
     whisper_model = os.environ.get("WHISPER_MODEL", "small")
+    language = os.environ.get("WHISPER_LANGUAGE", "ko")
     model = WhisperModel(whisper_model, device="cpu", compute_type="int8")
 
     duration = read_wav_duration(audio_path)
@@ -55,18 +56,15 @@ def transcribe(audio_path):
         chunk_paths = split_wav(audio_path, CHUNK_SECS, OVERLAP_SECS)
         total = len(chunk_paths)
         all_text = []
-        detected_language = 'ko'
 
         try:
             for i, chunk_path in enumerate(chunk_paths, 1):
                 print(f"PROGRESS:{i}/{total}", file=sys.stderr, flush=True)
-                segments, info = model.transcribe(chunk_path, language=None, beam_size=5)
+                segments, info = model.transcribe(chunk_path, language=language, beam_size=1)
                 text = " ".join(s.text.strip() for s in segments)
                 all_text.append(text)
-                detected_language = info.language
                 os.unlink(chunk_path)
         except Exception:
-            # Clean up any remaining temp files
             for p in chunk_paths:
                 if os.path.exists(p):
                     try:
@@ -76,9 +74,8 @@ def transcribe(audio_path):
             raise
 
         transcript = " ".join(all_text)
-        language = detected_language
     else:
-        segments, info = model.transcribe(audio_path, language=None, beam_size=5)
+        segments, info = model.transcribe(audio_path, language=language, beam_size=1)
         transcript = " ".join(s.text.strip() for s in segments)
         language = info.language
 
