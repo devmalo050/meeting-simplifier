@@ -13,6 +13,29 @@ function sanitizeDirName(title) {
   return title.replace(/[<>:"/\\|?*]/g, '').replace(/\s+/g, '-').slice(0, 80);
 }
 
+async function saveToDir({ dir, safeTitle, audioPath, format, title, minutes }) {
+  if (audioPath) {
+    const audioExt = path.extname(audioPath) || '.wav';
+    const finalAudioPath = path.join(dir, `${safeTitle}${audioExt}`);
+    try {
+      fs.renameSync(audioPath, finalAudioPath);
+    } catch (renameErr) {
+      if (renameErr.code === 'EXDEV') {
+        fs.copyFileSync(audioPath, finalAudioPath);
+        fs.unlinkSync(audioPath);
+      } else {
+        throw renameErr;
+      }
+    }
+  }
+  const minutesPath = path.join(dir, `${safeTitle}.${format}`);
+  if (format === 'md' || format === 'txt') {
+    fs.writeFileSync(minutesPath, minutes, 'utf-8');
+  } else if (format === 'docx') {
+    await saveDocx(minutesPath, title, minutes);
+  }
+}
+
 export async function saveMeeting({ title, transcript, minutes, audioPath, format, outputDir }) {
   const resolvedBase = resolvePath(outputDir);
   const now = new Date();
@@ -26,68 +49,19 @@ export async function saveMeeting({ title, transcript, minutes, audioPath, forma
     fs.mkdirSync(meetingDir, { recursive: true });
   } catch (err) {
     if (err.code === 'EACCES' || err.code === 'EPERM') {
-      // Fall back to Desktop on permission error (single attempt only)
       const fallbackDir = path.join(os.homedir(), 'Desktop', dirName);
       try {
         fs.mkdirSync(fallbackDir, { recursive: true });
-        // Continue with fallbackDir — save audio and minutes there
-        if (audioPath) {
-          const audioExt = path.extname(audioPath) || '.wav';
-          const fallbackAudioPath = path.join(fallbackDir, `${safeTitle}${audioExt}`);
-          try {
-            fs.renameSync(audioPath, fallbackAudioPath);
-          } catch (renameErr) {
-            if (renameErr.code === 'EXDEV') {
-              // Cross-filesystem move: copy then delete
-              fs.copyFileSync(audioPath, fallbackAudioPath);
-              fs.unlinkSync(audioPath);
-            } else {
-              throw renameErr;
-            }
-          }
-        }
-        const minutesPath = path.join(fallbackDir, `${sanitizeDirName(title)}.${format}`);
-        if (format === 'md' || format === 'txt') {
-          fs.writeFileSync(minutesPath, minutes, 'utf-8');
-        } else if (format === 'docx') {
-          await saveDocx(minutesPath, title, minutes);
-        }
+        await saveToDir({ dir: fallbackDir, safeTitle, audioPath, format, title, minutes });
         return { saved_dir: fallbackDir };
-      } catch (fallbackErr) {
+      } catch {
         throw new Error(`파일 저장 권한이 없습니다. 기본 경로(${outputDir})와 바탕화면 모두 접근할 수 없습니다.`);
       }
     }
     throw err;
   }
 
-  // Move recording file (temp → final location)
-  // audioPath may be empty string for text-only input (summarize skill)
-  if (audioPath) {
-    const audioExt = path.extname(audioPath) || '.wav';
-    const finalAudioPath = path.join(meetingDir, `${safeTitle}${audioExt}`);
-    try {
-      fs.renameSync(audioPath, finalAudioPath);
-    } catch (renameErr) {
-      if (renameErr.code === 'EXDEV') {
-        // Cross-filesystem move: copy then delete
-        fs.copyFileSync(audioPath, finalAudioPath);
-        fs.unlinkSync(audioPath);
-      } else {
-        throw renameErr;
-      }
-    }
-  }
-
-  // Save minutes file
-  const minutesFileName = `${safeTitle}.${format}`;
-  const minutesPath = path.join(meetingDir, minutesFileName);
-
-  if (format === 'md' || format === 'txt') {
-    fs.writeFileSync(minutesPath, minutes, 'utf-8');
-  } else if (format === 'docx') {
-    await saveDocx(minutesPath, title, minutes);
-  }
-
+  await saveToDir({ dir: meetingDir, safeTitle, audioPath, format, title, minutes });
   return { saved_dir: meetingDir };
 }
 

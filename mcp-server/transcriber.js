@@ -56,10 +56,11 @@ function getOrStartWorker(onProgress) {
 
     proc.stdout.on('data', (d) => {
       stdoutBuf += d.toString();
-      const nl = stdoutBuf.indexOf('\n');
-      if (nl !== -1) {
+      let nl;
+      while ((nl = stdoutBuf.indexOf('\n')) !== -1) {
         const jsonLine = stdoutBuf.slice(0, nl);
         stdoutBuf = stdoutBuf.slice(nl + 1);
+        if (!jsonLine.trim()) continue;
         if (pendingResolve) {
           const res = pendingResolve;
           const rej = pendingReject;

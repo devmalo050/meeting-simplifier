@@ -113,13 +113,10 @@ export function stopRecording() {
     });
   }
 
-  // 다른 프로세스에서 start한 경우 — rec 프로세스를 직접 종료하고 파일 확정 대기
+  // 다른 프로세스에서 start한 경우 — rec 프로세스만 종료하고 파일 확정 대기
   clearState();
   if (recPid) {
     try { process.kill(recPid, 'SIGTERM'); } catch {}
-  }
-  if (serverPid) {
-    try { process.kill(serverPid, 'SIGTERM'); } catch {}
   }
 
   // 파일이 디스크에 플러시될 때까지 최대 5초 대기
