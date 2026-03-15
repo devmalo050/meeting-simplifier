@@ -13,9 +13,38 @@ OVERLAP_SECS = 30
 def read_wav_duration(path):
     try:
         with wave.open(path, 'r') as f:
-            return f.getnframes() / f.getframerate()
+            params = f.getparams()
+            # node-record-lpcm16은 WAV 헤더의 nframes를 올바르게 기록하지 않음
+            # 실제 파일 크기로 프레임 수를 계산
+            file_size = os.path.getsize(path)
+            header_size = 44
+            actual_frames = (file_size - header_size) // (params.nchannels * params.sampwidth)
+            return actual_frames / params.framerate
     except Exception:
         return 0
+
+
+def fix_wav_header(path):
+    """WAV 헤더의 nframes가 잘못된 경우 수정된 임시 파일 반환. 정상이면 원본 경로 반환."""
+    try:
+        with wave.open(path, 'r') as f:
+            params = f.getparams()
+            file_size = os.path.getsize(path)
+            header_size = 44
+            actual_frames = (file_size - header_size) // (params.nchannels * params.sampwidth)
+            if abs(params.nframes - actual_frames) <= 160:  # 10ms 이내 오차는 정상
+                return path, False
+            # 헤더 불일치 — 실제 데이터로 새 WAV 파일 생성
+            f.rewind()
+            raw = f.readframes(params.nframes)
+    except Exception:
+        return path, False
+
+    tmp = tempfile.NamedTemporaryFile(suffix='.wav', delete=False)
+    with wave.open(tmp.name, 'w') as out:
+        out.setparams(params._replace(nframes=actual_frames))
+        out.writeframes(raw[:actual_frames * params.nchannels * params.sampwidth])
+    return tmp.name, True
 
 def split_wav(path, chunk_secs, overlap_secs):
     with wave.open(path, 'r') as f:
@@ -41,6 +70,18 @@ def split_wav(path, chunk_secs, overlap_secs):
     return chunks
 
 def transcribe(model, audio_path):
+    # WAV 헤더 nframes 오류 수정 (node-record-lpcm16 버그 대응)
+    fixed_path, was_fixed = fix_wav_header(audio_path) if audio_path.lower().endswith('.wav') else (audio_path, False)
+    if was_fixed:
+        print(f"WAV 헤더 수정됨: {audio_path}", file=sys.stderr, flush=True)
+    try:
+        return _transcribe(model, fixed_path)
+    finally:
+        if was_fixed and os.path.exists(fixed_path):
+            os.unlink(fixed_path)
+
+
+def _transcribe(model, audio_path):
     duration = read_wav_duration(audio_path)
     is_long = duration > CHUNK_SECS and audio_path.lower().endswith('.wav')
 

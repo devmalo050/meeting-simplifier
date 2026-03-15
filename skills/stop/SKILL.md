@@ -10,12 +10,12 @@ description: >
 
 1. `meeting_record_stop` 도구를 호출하여 녹음을 중지합니다.
    - 에러 반환 시 사용자에게 알리고 중단합니다.
-   - 결과의 `duration_seconds` 값을 사용해 사용자에게 알립니다: "녹음 시간: {duration_seconds}초"
+   - 완료 후 사용자에게 알립니다: "녹음 완료 — 녹음 시간: {duration_seconds}초"
 
-2. `meeting_transcribe` 도구를 호출합니다. (`audio_path`는 이전 단계 결과 사용)
-   - 변환 중임을 사용자에게 알립니다: "녹음을 텍스트로 변환 중입니다..."
-   - 변환 완료 후 결과의 `elapsed_seconds` 값을 사용해 사용자에게 알립니다: "변환 완료 ({elapsed_seconds}초)"
+2. `meeting_transcribe` 도구를 호출합니다. (`audio_path`는 1단계 결과의 `audio_path` 사용)
+   - 호출 전 사용자에게 알립니다: "텍스트 변환 중..."
    - 에러 반환 시 사용자에게 알리고 중단합니다.
+   - 완료 후 사용자에게 알립니다: "변환 완료 — {elapsed_seconds}초 소요"
 
 3. 트랜스크립트를 바탕으로 다음 항목을 분석합니다:
    - **회의 제목**: 내용을 보고 간결한 한국어 제목 생성 (예: "분기-마케팅-전략-회의")

@@ -23,10 +23,12 @@ server.registerTool('meeting_record_start', {
 });
 
 server.registerTool('meeting_record_stop', {
-  description: '녹음을 중지하고 WAV 파일 경로를 반환합니다.',
+  description: '녹음을 중지하고 WAV 파일 경로와 녹음 시간을 반환합니다.',
   inputSchema: {},
 }, async () => {
+  const t = Date.now();
   const result = await stopRecording();
+  result.stop_elapsed_seconds = ((Date.now() - t) / 1000).toFixed(1);
   return { content: [{ type: 'text', text: JSON.stringify(result) }] };
 });
 
