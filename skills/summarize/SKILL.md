@@ -15,6 +15,9 @@ description: >
 이후 `/meeting-simplifier:stop` skill의 3~6번 단계와 동일하게 진행합니다.
 (회의록 작성 → `meeting_save` 호출 → 완료 안내)
 
+단, 텍스트 파일(.txt/.md) 입력의 경우 `meeting_transcribe`를 호출하지 않으므로 `output_language`를 알 수 없습니다.
+이 경우 `meeting_save` 결과의 `output_language` 값을 회의록 언어 결정에 사용하세요.
+
 단, `meeting_save`의 `audio_path`는 오디오 파일인 경우 해당 파일 경로,
 텍스트 파일인 경우 빈 문자열("")을 전달합니다.
 

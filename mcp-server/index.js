@@ -61,7 +61,9 @@ server.registerTool('meeting_transcribe', {
     });
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
     process.stderr.write(`변환 완료 (${elapsed}초)\n`);
-    return { content: [{ type: 'text', text: JSON.stringify({ ...result, elapsed_seconds: parseFloat(elapsed) }) }] };
+    const settings = readSettings();
+    const output_language = settings.output_language ?? 'auto';
+    return { content: [{ type: 'text', text: JSON.stringify({ ...result, elapsed_seconds: parseFloat(elapsed), output_language }) }] };
   } catch (err) {
     return { content: [{ type: 'text', text: JSON.stringify({ error: err.message }) }] };
   }
@@ -81,10 +83,10 @@ server.registerTool('meeting_save', {
   const settings = readSettings();
   const resolvedFormat = format ?? settings.output_format ?? 'md';
   const resolvedOutputDir = output_dir ?? settings.output_dir ?? '~/Documents/meetings';
-  // audio_path가 없거나 파일이 존재하지 않으면 마지막 녹음 파일을 사용
-  const { existsSync } = await import('fs');
-  let resolvedAudioPath = audio_path;
-  if (!resolvedAudioPath || !existsSync(resolvedAudioPath)) {
+  // audio_path가 비어있으면 텍스트 전용 (summarize skill) — fallback 없이 그대로 사용
+  // audio_path가 있는데 파일이 없으면 마지막 녹음 파일로 fallback (stop skill 이상 상태 대비)
+  let resolvedAudioPath = audio_path || '';
+  if (resolvedAudioPath && !existsSync(resolvedAudioPath)) {
     const last = getLastAudioPath();
     if (last && existsSync(last)) {
       process.stderr.write(`[meeting-save] audio_path 불일치 감지, 마지막 녹음 파일 사용: ${last}\n`);
@@ -98,7 +100,8 @@ server.registerTool('meeting_save', {
       format: resolvedFormat,
       outputDir: resolvedOutputDir,
     });
-    return { content: [{ type: 'text', text: JSON.stringify(result) }] };
+    const settings2 = readSettings();
+    return { content: [{ type: 'text', text: JSON.stringify({ ...result, output_language: settings2.output_language ?? 'auto' }) }] };
   } catch (err) {
     return { content: [{ type: 'text', text: JSON.stringify({ error: err.message }) }] };
   }

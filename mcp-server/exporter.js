@@ -15,9 +15,11 @@ function sanitizeDirName(title) {
 
 export async function saveMeeting({ title, transcript, minutes, audioPath, format, outputDir }) {
   const resolvedBase = resolvePath(outputDir);
-  const date = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  const now = new Date();
+  const date = now.toISOString().slice(0, 10); // YYYY-MM-DD
+  const hhmm = now.toTimeString().slice(0, 5).replace(':', ''); // HHmm
   const safeTitle = sanitizeDirName(title);
-  const dirName = sanitizeDirName(`${date}-${title}`);
+  const dirName = sanitizeDirName(`${date}-${hhmm}-${title}`);
   const meetingDir = path.join(resolvedBase, dirName);
 
   try {
