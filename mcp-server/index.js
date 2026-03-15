@@ -6,7 +6,7 @@ import { existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import { startRecording, stopRecording, cleanupTempFiles } from './recorder.js';
-import { transcribeAudio } from './transcriber.js';
+import { transcribeAudio, killActiveTranscription } from './transcriber.js';
 import { saveMeeting } from './exporter.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -80,8 +80,8 @@ server.registerTool('meeting_save', {
   }
 });
 
-process.on('SIGINT', () => { cleanupTempFiles(); process.exit(0); });
-process.on('SIGTERM', () => { cleanupTempFiles(); process.exit(0); });
+process.on('SIGINT', () => { killActiveTranscription(); cleanupTempFiles(); process.exit(0); });
+process.on('SIGTERM', () => { killActiveTranscription(); cleanupTempFiles(); process.exit(0); });
 
 const transport = new StdioServerTransport();
 await server.connect(transport);

@@ -3,6 +3,14 @@
 
 PLUGIN_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
+# ── 중복 실행 방지 ──────────────────────────────────────────────────────────
+LOCK_FILE="/tmp/meeting-simplifier-setup.lock"
+if [ -f "$LOCK_FILE" ]; then
+  exit 0
+fi
+trap 'rm -f "$LOCK_FILE"' EXIT
+touch "$LOCK_FILE"
+
 # ── 1. SoX 설치 (녹음에 필요) ──────────────────────────────────────────────
 if ! command -v rec &>/dev/null; then
   if command -v brew &>/dev/null; then

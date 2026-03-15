@@ -8,6 +8,15 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PLUGIN_ROOT = path.join(__dirname, '..');
 const PYTHON_SCRIPT = path.join(__dirname, 'transcribe.py');
 
+let activeProc = null;
+
+export function killActiveTranscription() {
+  if (activeProc) {
+    try { activeProc.kill('SIGTERM'); } catch {}
+    activeProc = null;
+  }
+}
+
 // venv Python 우선 사용 (PEP 668 시스템 패키지 보호 우회)
 function resolvePython() {
   const venvPython = process.platform === 'win32'
@@ -20,6 +29,7 @@ export async function transcribeAudio(audioPath, onProgress) {
   const PYTHON_CMD = resolvePython();
   return new Promise((resolve, reject) => {
     const proc = spawn(PYTHON_CMD, [PYTHON_SCRIPT, audioPath], { env: process.env });
+    activeProc = proc;
     let stdout = '';
     let stderr = '';
 
@@ -35,6 +45,7 @@ export async function transcribeAudio(audioPath, onProgress) {
     });
 
     proc.on('close', (code) => {
+      if (activeProc === proc) activeProc = null;
       if (code !== 0) {
         if (stderr.includes('ModuleNotFoundError') || stderr.includes('No module named')) {
           reject(new Error('faster-whisper가 설치되어 있지 않습니다.\n실행: pip install faster-whisper'));
