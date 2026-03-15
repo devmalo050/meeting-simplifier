@@ -5,5 +5,8 @@
   "author": {
     "name": "ain",
     "email": ""
-  }
+  },
+  "homepage": "https://github.com/devmalo050/meeting-simplifier",
+  "repository": "https://github.com/devmalo050/meeting-simplifier",
+  "license": "MIT"
 }
