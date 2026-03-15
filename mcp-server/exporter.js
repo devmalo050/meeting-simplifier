@@ -30,7 +30,7 @@ export async function saveMeeting({ title, transcript, minutes, audioPath, forma
         // Continue with fallbackDir — save audio and minutes there
         if (audioPath) {
           const audioExt = path.extname(audioPath) || '.wav';
-          const fallbackAudioPath = path.join(fallbackDir, `recording${audioExt}`);
+          const fallbackAudioPath = path.join(fallbackDir, `${sanitizeDirName(title)}${audioExt}`);
           try {
             fs.renameSync(audioPath, fallbackAudioPath);
           } catch (renameErr) {
@@ -43,7 +43,7 @@ export async function saveMeeting({ title, transcript, minutes, audioPath, forma
             }
           }
         }
-        const minutesPath = path.join(fallbackDir, `minutes.${format}`);
+        const minutesPath = path.join(fallbackDir, `${sanitizeDirName(title)}.${format}`);
         if (format === 'md' || format === 'txt') {
           fs.writeFileSync(minutesPath, minutes, 'utf-8');
         } else if (format === 'docx') {
@@ -57,11 +57,13 @@ export async function saveMeeting({ title, transcript, minutes, audioPath, forma
     throw err;
   }
 
+  const safeTitle = sanitizeDirName(title);
+
   // Move recording file (temp → final location)
   // audioPath may be empty string for text-only input (summarize skill)
   if (audioPath) {
     const audioExt = path.extname(audioPath) || '.wav';
-    const finalAudioPath = path.join(meetingDir, `recording${audioExt}`);
+    const finalAudioPath = path.join(meetingDir, `${safeTitle}${audioExt}`);
     try {
       fs.renameSync(audioPath, finalAudioPath);
     } catch (renameErr) {
@@ -76,7 +78,7 @@ export async function saveMeeting({ title, transcript, minutes, audioPath, forma
   }
 
   // Save minutes file
-  const minutesFileName = `minutes.${format}`;
+  const minutesFileName = `${safeTitle}.${format}`;
   const minutesPath = path.join(meetingDir, minutesFileName);
 
   if (format === 'md' || format === 'txt') {
