@@ -5,6 +5,18 @@ import path from 'path';
 import os from 'os';
 
 const STATE_FILE = path.join(os.tmpdir(), 'meeting-simplifier-state.json');
+const LAST_AUDIO_FILE = path.join(os.tmpdir(), 'meeting-simplifier-last-audio.json');
+
+export function getLastAudioPath() {
+  try {
+    const d = JSON.parse(fs.readFileSync(LAST_AUDIO_FILE, 'utf8'));
+    return d.audio_path || null;
+  } catch { return null; }
+}
+
+function saveLastAudioPath(audioPath) {
+  fs.writeFileSync(LAST_AUDIO_FILE, JSON.stringify({ audio_path: audioPath }), 'utf8');
+}
 
 function readState() {
   try {
@@ -93,6 +105,7 @@ export function stopRecording() {
       fileStream.on('finish', () => {
         activeRecording = null;
         clearState();
+        saveLastAudioPath(tempPath);
         resolve({ audio_path: tempPath, duration_seconds: duration });
       });
       recording.stop();
@@ -118,6 +131,7 @@ export function stopRecording() {
         const size = fs.existsSync(tempPath) ? fs.statSync(tempPath).size : 0;
         if (size > 0 || waited >= 5000) {
           clearInterval(interval);
+          if (size > 0) saveLastAudioPath(tempPath);
           resolve(size > 0 ? { audio_path: tempPath, duration_seconds: duration } : { error: '녹음 파일을 찾을 수 없습니다.' });
         }
       } catch {

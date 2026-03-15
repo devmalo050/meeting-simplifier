@@ -5,7 +5,7 @@ import { z } from 'zod';
 import { existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import path from 'path';
-import { startRecording, stopRecording, cleanupTempFiles } from './recorder.js';
+import { startRecording, stopRecording, cleanupTempFiles, getLastAudioPath } from './recorder.js';
 import { transcribeAudio, killActiveTranscription } from './transcriber.js';
 import { saveMeeting } from './exporter.js';
 
@@ -67,10 +67,20 @@ server.registerTool('meeting_save', {
     output_dir: z.string().describe('저장 기본 디렉토리'),
   },
 }, async ({ title, transcript, minutes, audio_path, format, output_dir }) => {
+  // audio_path가 없거나 파일이 존재하지 않으면 마지막 녹음 파일을 사용
+  const { existsSync } = await import('fs');
+  let resolvedAudioPath = audio_path;
+  if (!resolvedAudioPath || !existsSync(resolvedAudioPath)) {
+    const last = getLastAudioPath();
+    if (last && existsSync(last)) {
+      process.stderr.write(`[meeting-save] audio_path 불일치 감지, 마지막 녹음 파일 사용: ${last}\n`);
+      resolvedAudioPath = last;
+    }
+  }
   try {
     const result = await saveMeeting({
       title, transcript, minutes,
-      audioPath: audio_path,
+      audioPath: resolvedAudioPath,
       format,
       outputDir: output_dir,
     });
