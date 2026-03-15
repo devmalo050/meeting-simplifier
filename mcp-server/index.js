@@ -2,9 +2,15 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
+import { existsSync } from 'fs';
+import { fileURLToPath } from 'url';
+import path from 'path';
 import { startRecording, stopRecording, cleanupTempFiles } from './recorder.js';
 import { transcribeAudio } from './transcriber.js';
 import { saveMeeting } from './exporter.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const PLUGIN_ROOT = path.join(__dirname, '..');
 
 const server = new McpServer({ name: 'meeting-simplifier', version: '1.0.0' });
 
@@ -30,6 +36,13 @@ server.registerTool('meeting_transcribe', {
     audio_path: z.string().describe('변환할 오디오 파일 경로 (WAV/MP3/M4A)'),
   },
 }, async ({ audio_path }) => {
+  // venv 준비 중 여부 확인 (설치/재설치 직후)
+  const venvPython = process.platform === 'win32'
+    ? path.join(PLUGIN_ROOT, '.venv', 'Scripts', 'python.exe')
+    : path.join(PLUGIN_ROOT, '.venv', 'bin', 'python');
+  if (!existsSync(venvPython)) {
+    return { content: [{ type: 'text', text: JSON.stringify({ error: '환경 설치가 아직 진행 중입니다. 1~2분 후 다시 시도해주세요.' }) }] };
+  }
   try {
     const startTime = Date.now();
     const result = await transcribeAudio(audio_path, (current, total) => {

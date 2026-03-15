@@ -74,7 +74,7 @@ if ! "$VENV_PYTHON" -c "import faster_whisper" 2>/dev/null; then
   [ $? -eq 0 ] && echo "✅ faster-whisper 설치 완료" || echo "❌ faster-whisper 설치 실패. 수동으로 실행하세요: pip install faster-whisper"
 fi
 
-# ── 5. Whisper medium 모델 미리 다운로드 ───────────────────────────────────
+# ── 5. Whisper 모델 미리 다운로드 ─────────────────────────────────────────
 MODEL_CACHE="$HOME/.cache/huggingface/hub/models--Systran--faster-whisper-${WHISPER_MODEL}"
 if [ ! -d "$MODEL_CACHE" ]; then
   echo "📦 Whisper ${WHISPER_MODEL} 모델을 다운로드합니다 (최초 1회)..."
