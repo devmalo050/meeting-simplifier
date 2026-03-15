@@ -25,6 +25,16 @@ function clearState() {
 // 인메모리 recording 핸들 (이 프로세스에서 start한 경우에만 유효)
 let activeRecording = null;
 
+// 서버 시작 시 이전 프로세스의 stale state 정리
+// (reload 시 MCP 서버가 재시작되면 state 파일은 남지만 activeRecording은 사라짐)
+{
+  const stale = readState();
+  if (stale && stale.serverPid !== process.pid) {
+    if (stale.recPid) { try { process.kill(stale.recPid, 'SIGTERM'); } catch {} }
+    clearState();
+  }
+}
+
 export function startRecording() {
   if (readState()) {
     return { error: '이미 녹음 중입니다. 먼저 녹음을 중지해주세요.' };
