@@ -19,7 +19,7 @@ function resolvePython() {
 export async function transcribeAudio(audioPath, onProgress) {
   const PYTHON_CMD = resolvePython();
   return new Promise((resolve, reject) => {
-    const proc = spawn(PYTHON_CMD, [PYTHON_SCRIPT, audioPath]);
+    const proc = spawn(PYTHON_CMD, [PYTHON_SCRIPT, audioPath], { env: process.env });
     let stdout = '';
     let stderr = '';
 
