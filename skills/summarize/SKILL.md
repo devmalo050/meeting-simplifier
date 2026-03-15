@@ -18,4 +18,4 @@ description: >
 단, `meeting_save`의 `audio_path`는 오디오 파일인 경우 해당 파일 경로,
 텍스트 파일인 경우 빈 문자열("")을 전달합니다.
 
-`format`과 `output_dir`은 `${CLAUDE_PLUGIN_ROOT}/settings.json`의 `meeting-simplifier.output_format`, `meeting-simplifier.output_dir` 값을 사용합니다. (없으면 각각 "md", "~/Documents/meetings")
+`format`과 `output_dir`은 생략 가능합니다 (서버가 settings.json에서 자동으로 읽음).

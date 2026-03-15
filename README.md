@@ -5,7 +5,7 @@
 ## 기능
 
 - 마이크 녹음 시작/중지
-- Whisper large-v3으로 한국어/영어 자동 음성 인식
+- Whisper small으로 한국어/영어 자동 음성 인식 (언어 자동 감지)
 - Claude로 회의록 자동 생성 (요약, 상세내용, 결정사항, 액션아이템, 트랜스크립트)
 - md / txt / docx 포맷 저장
 - 자연어 트리거 지원 ("녹음 시작해줘", "회의 끝났어" 등)
@@ -20,7 +20,7 @@
 | Python 3.9+ | 기본 설치 | [python.org](https://python.org/downloads) |
 | faster-whisper | 플러그인 로드 시 자동 설치 | 플러그인 로드 시 자동 설치 |
 
-> **참고:** 최초 실행 시 Whisper large-v3 모델(약 3GB)이 자동 다운로드됩니다.
+> **참고:** 최초 실행 시 Whisper small 모델(약 500MB)이 자동 다운로드됩니다.
 
 > **Windows sox 주의:** Chocolatey sox는 `rec` 바이너리가 누락될 수 있습니다. [공식 sox 바이너리](https://sourceforge.net/projects/sox/files/sox/)를 직접 설치하세요.
 
@@ -79,8 +79,8 @@ npm install
 ```
 ~/Documents/meetings/
 └── 2026-03-11-분기-마케팅-전략-회의/
-    ├── recording.wav      # 녹음 파일
-    └── minutes.md         # 회의록
+    ├── 분기-마케팅-전략-회의.wav   # 녹음 파일
+    └── 분기-마케팅-전략-회의.md    # 회의록
 ```
 
 ## 의존성 확인

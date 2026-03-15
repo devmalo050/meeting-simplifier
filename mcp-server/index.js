@@ -2,7 +2,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
-import { existsSync } from 'fs';
+import { existsSync, readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import { startRecording, stopRecording, cleanupTempFiles, getLastAudioPath } from './recorder.js';
@@ -11,6 +11,15 @@ import { saveMeeting } from './exporter.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PLUGIN_ROOT = path.join(__dirname, '..');
+
+function readSettings() {
+  try {
+    const raw = readFileSync(path.join(PLUGIN_ROOT, 'settings.json'), 'utf-8');
+    return JSON.parse(raw)['meeting-simplifier'] ?? {};
+  } catch {
+    return {};
+  }
+}
 
 const server = new McpServer({ name: 'meeting-simplifier', version: '1.0.0' });
 
@@ -65,10 +74,13 @@ server.registerTool('meeting_save', {
     transcript: z.string().describe('Whisper 원문 트랜스크립트'),
     minutes: z.string().describe('회의록 본문 (마크다운)'),
     audio_path: z.string().describe('저장할 녹음 파일 경로'),
-    format: z.enum(['md', 'txt', 'docx']).describe('출력 포맷'),
-    output_dir: z.string().describe('저장 기본 디렉토리'),
+    format: z.enum(['md', 'txt', 'docx']).optional().describe('출력 포맷 (없으면 settings.json 값 사용)'),
+    output_dir: z.string().optional().describe('저장 기본 디렉토리 (없으면 settings.json 값 사용)'),
   },
 }, async ({ title, transcript, minutes, audio_path, format, output_dir }) => {
+  const settings = readSettings();
+  const resolvedFormat = format ?? settings.output_format ?? 'md';
+  const resolvedOutputDir = output_dir ?? settings.output_dir ?? '~/Documents/meetings';
   // audio_path가 없거나 파일이 존재하지 않으면 마지막 녹음 파일을 사용
   const { existsSync } = await import('fs');
   let resolvedAudioPath = audio_path;
@@ -83,8 +95,8 @@ server.registerTool('meeting_save', {
     const result = await saveMeeting({
       title, transcript, minutes,
       audioPath: resolvedAudioPath,
-      format,
-      outputDir: output_dir,
+      format: resolvedFormat,
+      outputDir: resolvedOutputDir,
     });
     return { content: [{ type: 'text', text: JSON.stringify(result) }] };
   } catch (err) {

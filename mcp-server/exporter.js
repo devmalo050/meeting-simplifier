@@ -16,6 +16,7 @@ function sanitizeDirName(title) {
 export async function saveMeeting({ title, transcript, minutes, audioPath, format, outputDir }) {
   const resolvedBase = resolvePath(outputDir);
   const date = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+  const safeTitle = sanitizeDirName(title);
   const dirName = sanitizeDirName(`${date}-${title}`);
   const meetingDir = path.join(resolvedBase, dirName);
 
@@ -30,7 +31,7 @@ export async function saveMeeting({ title, transcript, minutes, audioPath, forma
         // Continue with fallbackDir — save audio and minutes there
         if (audioPath) {
           const audioExt = path.extname(audioPath) || '.wav';
-          const fallbackAudioPath = path.join(fallbackDir, `${sanitizeDirName(title)}${audioExt}`);
+          const fallbackAudioPath = path.join(fallbackDir, `${safeTitle}${audioExt}`);
           try {
             fs.renameSync(audioPath, fallbackAudioPath);
           } catch (renameErr) {
@@ -56,8 +57,6 @@ export async function saveMeeting({ title, transcript, minutes, audioPath, forma
     }
     throw err;
   }
-
-  const safeTitle = sanitizeDirName(title);
 
   // Move recording file (temp → final location)
   // audioPath may be empty string for text-only input (summarize skill)
