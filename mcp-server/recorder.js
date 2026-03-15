@@ -71,7 +71,7 @@ export function startRecording() {
   // rec 프로세스 PID를 state에 저장 (cross-process stop에 사용)
   const recPid = recording.process?.pid ?? null;
   activeRecording = { recording, tempPath, fileStream };
-  writeState({ tempPath, serverPid: process.pid, recPid });
+  writeState({ tempPath, serverPid: process.pid, recPid, startedAt: Date.now() });
   return { ok: true };
 }
 
@@ -82,7 +82,8 @@ export function stopRecording() {
     return Promise.resolve({ error: '진행 중인 녹음이 없습니다.' });
   }
 
-  const { tempPath, serverPid, recPid } = state;
+  const { tempPath, serverPid, recPid, startedAt } = state;
+  const duration = startedAt ? Math.round((Date.now() - startedAt) / 1000) : null;
 
   // 같은 프로세스에서 start한 경우 — 정상 종료
   if (activeRecording && serverPid === process.pid) {
@@ -92,7 +93,7 @@ export function stopRecording() {
       fileStream.on('finish', () => {
         activeRecording = null;
         clearState();
-        resolve({ audio_path: tempPath });
+        resolve({ audio_path: tempPath, duration_seconds: duration });
       });
       recording.stop();
       recording.stream().once('end', () => fileStream.end());
@@ -117,7 +118,7 @@ export function stopRecording() {
         const size = fs.existsSync(tempPath) ? fs.statSync(tempPath).size : 0;
         if (size > 0 || waited >= 5000) {
           clearInterval(interval);
-          resolve(size > 0 ? { audio_path: tempPath } : { error: '녹음 파일을 찾을 수 없습니다.' });
+          resolve(size > 0 ? { audio_path: tempPath, duration_seconds: duration } : { error: '녹음 파일을 찾을 수 없습니다.' });
         }
       } catch {
         clearInterval(interval);

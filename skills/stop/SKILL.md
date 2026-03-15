@@ -10,6 +10,7 @@ description: >
 
 1. `meeting_record_stop` 도구를 호출하여 녹음을 중지합니다.
    - 에러 반환 시 사용자에게 알리고 중단합니다.
+   - 결과의 `duration_seconds` 값을 사용해 사용자에게 알립니다: "녹음 시간: {duration_seconds}초"
 
 2. `meeting_transcribe` 도구를 호출합니다. (`audio_path`는 이전 단계 결과 사용)
    - 변환 중임을 사용자에게 알립니다: "녹음을 텍스트로 변환 중입니다..."
