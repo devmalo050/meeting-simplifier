@@ -22,7 +22,7 @@ async function saveToDir({ dir, safeTitle, audioPath, format, title, minutes }) 
     } catch (renameErr) {
       if (renameErr.code === 'EXDEV') {
         fs.copyFileSync(audioPath, finalAudioPath);
-        fs.unlinkSync(audioPath);
+        try { fs.unlinkSync(audioPath); } catch {} // 원본 삭제 실패해도 복사본은 있으므로 무시
       } else {
         throw renameErr;
       }

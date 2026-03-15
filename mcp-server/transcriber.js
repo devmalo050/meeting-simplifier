@@ -107,8 +107,16 @@ export async function transcribeAudio(audioPath, onProgress) {
   proc._onProgress = onProgress;
 
   return new Promise((resolve, reject) => {
-    pendingResolve = resolve;
-    pendingReject = reject;
+    const timeout = setTimeout(() => {
+      if (pendingReject) {
+        pendingResolve = null;
+        pendingReject = null;
+        reject(new Error('음성 변환 타임아웃 (10분 초과). 녹음 파일이 너무 크거나 시스템이 응답하지 않습니다.'));
+      }
+    }, 10 * 60 * 1000); // 10분
+
+    pendingResolve = (result) => { clearTimeout(timeout); resolve(result); };
+    pendingReject = (err) => { clearTimeout(timeout); reject(err); };
     proc.stdin.write(JSON.stringify({ audio_path: audioPath }) + '\n');
   });
 }
