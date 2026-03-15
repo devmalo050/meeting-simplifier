@@ -9,6 +9,24 @@ import path from 'path';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const pluginRoot = path.join(__dirname, '..');
 
+// ── 이전 버전 MCP 프로세스 종료 ─────────────────────────────────────────────
+// 같은 플러그인명이지만 현재 버전 경로와 다른 프로세스를 찾아 종료
+try {
+  const pids = spawnSync('pgrep', ['-f', 'meeting-simplifier.*mcp-server'], { encoding: 'utf8' })
+    .stdout.trim().split('\n').filter(Boolean);
+  for (const pidStr of pids) {
+    const pid = parseInt(pidStr, 10);
+    if (!pid || pid === process.pid) continue;
+    try {
+      // macOS: ps로 실행 경로 확인
+      const cmdline = spawnSync('ps', ['-p', String(pid), '-o', 'args='], { encoding: 'utf8' }).stdout;
+      if (cmdline.includes('meeting-simplifier') && !cmdline.includes(pluginRoot)) {
+        process.kill(pid, 'SIGTERM');
+      }
+    } catch {}
+  }
+} catch {}
+
 // ── Whisper 모델 설정 (여기서만 관리, setup.sh와 transcribe.py에 전달) ──
 export const WHISPER_MODEL = 'small';
 
