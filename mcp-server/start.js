@@ -29,7 +29,6 @@ try {
 
 // ── Whisper 설정 (여기서만 관리, setup.sh와 transcribe.py에 전달) ──
 export const WHISPER_MODEL = 'small';
-export const WHISPER_LANGUAGE = 'ko';  // 언어 고정 시 beam_size=1로도 정확도 유지
 
 // npm install — MCP 서버 구동에 필수, 동기 실행
 if (!existsSync(path.join(pluginRoot, 'node_modules', '@modelcontextprotocol'))) {
@@ -64,7 +63,7 @@ if (!existsSync(venvPython) || !existsSync(modelCache)) {
 // reload 시 중복 프로세스가 생기지 않음
 const result = spawnSync(process.execPath, [path.join(__dirname, 'index.js')], {
   cwd: pluginRoot,
-  env: { ...process.env, WHISPER_MODEL, WHISPER_LANGUAGE },
+  env: { ...process.env, WHISPER_MODEL },
   stdio: 'inherit',
 });
 
