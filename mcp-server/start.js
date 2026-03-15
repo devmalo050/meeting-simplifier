@@ -10,16 +10,16 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const pluginRoot = path.join(__dirname, '..');
 
 // ── 이전 버전 MCP 프로세스 종료 ─────────────────────────────────────────────
-// 같은 플러그인명이지만 현재 버전 경로와 다른 프로세스를 찾아 종료
+// meeting-simplifier 관련 모든 node 프로세스를 찾아 현재 버전 경로가 아닌 것을 종료
 try {
-  const pids = spawnSync('pgrep', ['-f', 'meeting-simplifier.*mcp-server'], { encoding: 'utf8' })
-    .stdout.trim().split('\n').filter(Boolean);
+  const result = spawnSync('pgrep', ['-f', 'meeting-simplifier'], { encoding: 'utf8' });
+  const pids = result.stdout.trim().split('\n').filter(Boolean);
   for (const pidStr of pids) {
     const pid = parseInt(pidStr, 10);
     if (!pid || pid === process.pid) continue;
     try {
-      // macOS: ps로 실행 경로 확인
       const cmdline = spawnSync('ps', ['-p', String(pid), '-o', 'args='], { encoding: 'utf8' }).stdout;
+      // meeting-simplifier 관련이지만 현재 pluginRoot(버전 경로)가 아닌 것만 종료
       if (cmdline.includes('meeting-simplifier') && !cmdline.includes(pluginRoot)) {
         process.kill(pid, 'SIGTERM');
       }
@@ -58,13 +58,20 @@ if (!existsSync(venvPython) || !existsSync(modelCache)) {
   setupProc.unref();
 }
 
-// index.js를 spawnSync로 실행 — 현재 프로세스가 끝날 때까지 블로킹
-// spawn 대신 spawnSync를 쓰면 start.js 프로세스가 index.js와 1:1로 대응되어
-// reload 시 중복 프로세스가 생기지 않음
-const result = spawnSync(process.execPath, [path.join(__dirname, 'index.js')], {
+// index.js를 자식 프로세스로 실행
+// start.js가 SIGTERM/SIGINT 받으면 자식도 같이 종료 → 구버전 고아 방지
+const child = spawn(process.execPath, [path.join(__dirname, 'index.js')], {
   cwd: pluginRoot,
   env: { ...process.env, WHISPER_MODEL },
   stdio: 'inherit',
 });
 
-process.exit(result.status ?? 0);
+function forwardSignal(sig) {
+  try { child.kill(sig); } catch {}
+}
+process.on('SIGTERM', () => { forwardSignal('SIGTERM'); });
+process.on('SIGINT', () => { forwardSignal('SIGINT'); });
+
+child.on('exit', (code) => {
+  process.exit(code ?? 0);
+});
