@@ -103,6 +103,9 @@ export function stopRecording() {
 
     return new Promise((resolve) => {
       const timeout = setTimeout(() => {
+        // finish 이벤트가 오지 않으면 강제로 스트림 종료 후 반환
+        try { recording.stop(); } catch {}
+        try { fileStream.end(); } catch {}
         activeRecording = null;
         clearState();
         saveLastAudioPath(tempPath);

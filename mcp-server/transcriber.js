@@ -87,6 +87,7 @@ function getOrStartWorker(onProgress) {
     });
 
     proc.on('close', (code) => {
+      const wasReady = workerReady; // close 전 상태 저장
       workerProc = null;
       workerReady = false;
       if (pendingReject) {
@@ -94,7 +95,8 @@ function getOrStartWorker(onProgress) {
         pendingResolve = null;
         pendingReject = null;
       }
-      if (!workerReady) reject(new Error(`Whisper 프로세스 시작 실패 (code ${code})`));
+      // READY:ok를 받기 전에 종료된 경우에만 시작 실패 reject
+      if (!wasReady) reject(new Error(`Whisper 프로세스 시작 실패 (code ${code})`));
     });
   });
 }

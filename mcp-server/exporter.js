@@ -9,7 +9,7 @@ function resolvePath(p) {
 }
 
 function sanitizeDirName(title) {
-  // Remove characters invalid in directory names, replace spaces with hyphens
+  // 디렉토리명에 허용되지 않는 문자 제거, 공백은 하이픈으로 대체
   return title.replace(/[<>:"/\\|?*]/g, '').replace(/\s+/g, '-').slice(0, 80);
 }
 
@@ -66,7 +66,7 @@ export async function saveMeeting({ title, transcript, minutes, audioPath, forma
 }
 
 async function saveDocx(filePath, title, minutes) {
-  // Convert markdown text to DOCX paragraphs (basic conversion)
+  // 마크다운 텍스트를 DOCX 단락으로 변환 (기본 변환)
   const lines = minutes.split('\n');
   const children = lines.map((line) => {
     if (line.startsWith('# ')) {
