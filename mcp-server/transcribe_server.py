@@ -29,9 +29,13 @@ def fix_wav_header(path):
     try:
         with wave.open(path, 'r') as f:
             params = f.getparams()
+            # wave 모듈이 data 청크 위치를 파악한 후 tell()로 정확한 오프셋 획득
+            # (LIST 메타데이터 청크 등으로 44바이트보다 클 수 있으므로 하드코딩 금지)
+            f.rewind()
+            data_offset = f.tell()
             file_size = os.path.getsize(path)
-            header_size = 44
-            actual_frames = (file_size - header_size) // (params.nchannels * params.sampwidth)
+            frame_size = params.nchannels * params.sampwidth
+            actual_frames = (file_size - data_offset) // frame_size
             if abs(params.nframes - actual_frames) <= 160:  # 10ms 이내 오차는 정상
                 return path, False
             # 헤더 불일치 — raw binary로 직접 읽어야 wave 모듈의 nframes 제한을 우회
@@ -41,7 +45,7 @@ def fix_wav_header(path):
     try:
         raw_size = actual_frames * params.nchannels * params.sampwidth
         with open(path, 'rb') as bf:
-            bf.seek(header_size)
+            bf.seek(data_offset)
             raw = bf.read(raw_size)
     except Exception:
         return path, False

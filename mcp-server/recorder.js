@@ -119,8 +119,9 @@ export function stopRecording() {
         saveLastAudioPath(tempPath);
         resolve({ audio_path: tempPath, duration_seconds: duration });
       });
-      recording.stop();
+      // end 리스너 먼저 등록 후 stop — stop 직후 end가 emit될 경우 리스너 누락 방지
       recording.stream().once('end', () => fileStream.end());
+      recording.stop();
     });
   }
 

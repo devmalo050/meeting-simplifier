@@ -24,7 +24,8 @@ async function saveToDir({ dir, safeTitle, audioPath, format, title, minutes }) 
         fs.copyFileSync(audioPath, finalAudioPath);
         try { fs.unlinkSync(audioPath); } catch {} // 원본 삭제 실패해도 복사본은 있으므로 무시
       } else {
-        throw renameErr;
+        // 오디오 이동 실패해도 회의록은 저장 — 에러는 stderr에 기록
+        process.stderr.write(`[exporter] 오디오 파일 이동 실패 (${renameErr.code}): ${renameErr.message}\n`);
       }
     }
   }
