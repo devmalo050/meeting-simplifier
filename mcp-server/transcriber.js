@@ -23,7 +23,7 @@ let pendingResolve = null;   // 현재 진행 중인 transcribe의 resolve
 let pendingReject = null;
 let stdoutBuf = '';
 
-function getOrStartWorker(onProgress) {
+function getOrStartWorker() {
   if (workerProc && !workerProc.killed) {
     return Promise.resolve(workerProc);
   }
@@ -90,6 +90,7 @@ function getOrStartWorker(onProgress) {
       const wasReady = workerReady; // close 전 상태 저장
       workerProc = null;
       workerReady = false;
+      stdoutBuf = ''; // 재시작 시 이전 worker의 stale 데이터 오염 방지
       if (pendingReject) {
         pendingReject(new Error(`Whisper 프로세스 종료 (code ${code})`));
         pendingResolve = null;
@@ -102,7 +103,7 @@ function getOrStartWorker(onProgress) {
 }
 
 export async function transcribeAudio(audioPath, onProgress) {
-  const proc = await getOrStartWorker(onProgress);
+  const proc = await getOrStartWorker();
 
   // onProgress 콜백을 stderr 핸들러에 연결 (요청별로 교체)
   // stderr 이벤트는 getOrStartWorker에서 이미 등록됨 — onProgress를 교체

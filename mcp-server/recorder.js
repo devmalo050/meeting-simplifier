@@ -102,8 +102,18 @@ export function stopRecording() {
     const { recording, fileStream } = activeRecording;
 
     return new Promise((resolve) => {
+      const onFinish = () => {
+        clearTimeout(timeout);
+        fileStream.removeListener('finish', onFinish);
+        activeRecording = null;
+        clearState();
+        saveLastAudioPath(tempPath);
+        resolve({ audio_path: tempPath, duration_seconds: duration });
+      };
+
       const timeout = setTimeout(() => {
         // finish 이벤트가 오지 않으면 강제로 스트림 종료 후 반환
+        fileStream.removeListener('finish', onFinish);
         try { recording.stop(); } catch {}
         try { fileStream.end(); } catch {}
         activeRecording = null;
@@ -112,13 +122,7 @@ export function stopRecording() {
         resolve({ audio_path: tempPath, duration_seconds: duration });
       }, 10000); // 10초 타임아웃
 
-      fileStream.on('finish', () => {
-        clearTimeout(timeout);
-        activeRecording = null;
-        clearState();
-        saveLastAudioPath(tempPath);
-        resolve({ audio_path: tempPath, duration_seconds: duration });
-      });
+      fileStream.once('finish', onFinish);
       // end 리스너 먼저 등록 후 stop — stop 직후 end가 emit될 경우 리스너 누락 방지
       recording.stream().once('end', () => fileStream.end());
       recording.stop();
