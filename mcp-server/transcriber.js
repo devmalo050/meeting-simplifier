@@ -110,11 +110,10 @@ export async function transcribeAudio(audioPath, onProgress) {
 
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
-      if (pendingReject) {
-        pendingResolve = null;
-        pendingReject = null;
-        reject(new Error('음성 변환 타임아웃 (10분 초과). 녹음 파일이 너무 크거나 시스템이 응답하지 않습니다.'));
-      }
+      // pendingReject 유무와 무관하게 항상 reject — 조건부면 타임아웃 에러 누락 가능
+      pendingResolve = null;
+      pendingReject = null;
+      reject(new Error('음성 변환 타임아웃 (10분 초과). 녹음 파일이 너무 크거나 시스템이 응답하지 않습니다.'));
     }, 10 * 60 * 1000); // 10분
 
     pendingResolve = (result) => { clearTimeout(timeout); resolve(result); };

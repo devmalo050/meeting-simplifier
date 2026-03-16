@@ -34,16 +34,22 @@ def fix_wav_header(path):
             actual_frames = (file_size - header_size) // (params.nchannels * params.sampwidth)
             if abs(params.nframes - actual_frames) <= 160:  # 10ms 이내 오차는 정상
                 return path, False
-            # 헤더 불일치 — 실제 데이터로 새 WAV 파일 생성
-            f.rewind()
-            raw = f.readframes(actual_frames)  # 헤더가 아닌 실제 프레임 수만큼 읽기
+            # 헤더 불일치 — raw binary로 직접 읽어야 wave 모듈의 nframes 제한을 우회
+    except Exception:
+        return path, False
+
+    try:
+        raw_size = actual_frames * params.nchannels * params.sampwidth
+        with open(path, 'rb') as bf:
+            bf.seek(header_size)
+            raw = bf.read(raw_size)
     except Exception:
         return path, False
 
     tmp = tempfile.NamedTemporaryFile(suffix='.wav', delete=False)
     with wave.open(tmp.name, 'w') as out:
         out.setparams(params._replace(nframes=actual_frames))
-        out.writeframes(raw[:actual_frames * params.nchannels * params.sampwidth])
+        out.writeframes(raw)
     return tmp.name, True
 
 def split_wav(path, chunk_secs, overlap_secs):
