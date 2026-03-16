@@ -111,7 +111,7 @@ function getOrStartWorker() {
   return workerStarting;
 }
 
-export async function transcribeAudio(audioPath, onProgress) {
+export async function transcribeAudio(audioPath, onProgress, language = null) {
   const proc = await getOrStartWorker();
 
   // onProgress 콜백을 stderr 핸들러에 연결 (요청별로 교체)
@@ -130,7 +130,7 @@ export async function transcribeAudio(audioPath, onProgress) {
 
     pendingResolve = (result) => { clearTimeout(timeout); resolve(result); };
     pendingReject = (err) => { clearTimeout(timeout); reject(err); };
-    proc.stdin.write(JSON.stringify({ audio_path: audioPath }) + '\n');
+    proc.stdin.write(JSON.stringify({ audio_path: audioPath, language: language ?? null }) + '\n');
   });
 }
 

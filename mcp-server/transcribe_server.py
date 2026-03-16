@@ -79,35 +79,38 @@ def split_wav(path, chunk_secs, overlap_secs):
             offset += step_frames
     return chunks
 
-def transcribe(model, audio_path):
+def transcribe(model, audio_path, language=None):
     # WAV 헤더 nframes 오류 수정 (node-record-lpcm16 버그 대응)
     fixed_path, was_fixed = fix_wav_header(audio_path) if audio_path.lower().endswith('.wav') else (audio_path, False)
     if was_fixed:
         print(f"WAV 헤더 수정됨: {audio_path}", file=sys.stderr, flush=True)
     try:
-        return _transcribe(model, fixed_path)
+        return _transcribe(model, fixed_path, language=language)
     finally:
         if was_fixed and os.path.exists(fixed_path):
             os.unlink(fixed_path)
 
 
-def _transcribe(model, audio_path):
+def _transcribe(model, audio_path, language=None):
     duration = read_wav_duration(audio_path)
     is_long = duration > CHUNK_SECS and audio_path.lower().endswith('.wav')
+
+    # language가 None이거나 "auto"면 자동 감지, 그 외("ko", "en" 등)면 고정
+    lang_param = None if (language is None or language == "auto") else language
 
     if is_long:
         chunk_paths = split_wav(audio_path, CHUNK_SECS, OVERLAP_SECS)
         total = len(chunk_paths)
         all_text = []
-        language = None
+        detected_language = None
         try:
             for i, chunk_path in enumerate(chunk_paths, 1):
                 print(f"PROGRESS:{i}/{total}", file=sys.stderr, flush=True)
-                segments, info = model.transcribe(chunk_path, language=None, beam_size=1)
+                segments, info = model.transcribe(chunk_path, language=lang_param, beam_size=1, vad_filter=True)
                 text = " ".join(s.text.strip() for s in segments)
                 all_text.append(text)
-                if language is None:
-                    language = info.language
+                if detected_language is None:
+                    detected_language = info.language
                 os.unlink(chunk_path)
         except Exception:
             for p in chunk_paths:
@@ -116,17 +119,20 @@ def _transcribe(model, audio_path):
                     except: pass
             raise
         transcript = " ".join(all_text)
+        language = detected_language
     else:
-        segments, info = model.transcribe(audio_path, language=None, beam_size=1)
+        segments, info = model.transcribe(audio_path, language=lang_param, beam_size=1, vad_filter=True)
         transcript = " ".join(s.text.strip() for s in segments)
         language = info.language
 
     return {"transcript": transcript, "language": language}
 
 def main():
+    import multiprocessing
     whisper_model = os.environ.get("WHISPER_MODEL", "small")
-    print(f"READY:loading model={whisper_model}", file=sys.stderr, flush=True)
-    model = WhisperModel(whisper_model, device="cpu", compute_type="int8")
+    cpu_threads = int(os.environ.get("WHISPER_CPU_THREADS", min(os.cpu_count() or 4, 8)))
+    print(f"READY:loading model={whisper_model} cpu_threads={cpu_threads}", file=sys.stderr, flush=True)
+    model = WhisperModel(whisper_model, device="cpu", compute_type="int8", cpu_threads=cpu_threads)
     print("READY:ok", file=sys.stderr, flush=True)
 
     for line in sys.stdin:
@@ -139,7 +145,8 @@ def main():
             if not audio_path:
                 print(json.dumps({"error": "audio_path required"}), flush=True)
                 continue
-            result = transcribe(model, audio_path)
+            language = req.get("language") or None  # "auto" 또는 None이면 자동 감지, "ko"/"en" 등이면 고정
+            result = transcribe(model, audio_path, language=language)
             print(json.dumps(result, ensure_ascii=False), flush=True)
         except Exception as e:
             print(json.dumps({"error": str(e)}, ensure_ascii=False), flush=True)
