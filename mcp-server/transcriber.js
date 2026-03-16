@@ -28,6 +28,7 @@ function getOrStartWorker() {
     return Promise.resolve(workerProc);
   }
 
+  stdoutBuf = ''; // 새 worker 시작 전 이전 stale 데이터 초기화
   return new Promise((resolve, reject) => {
     const python = resolvePython();
     const proc = spawn(python, [PYTHON_SCRIPT], {
@@ -90,7 +91,6 @@ function getOrStartWorker() {
       const wasReady = workerReady; // close 전 상태 저장
       workerProc = null;
       workerReady = false;
-      stdoutBuf = ''; // 재시작 시 이전 worker의 stale 데이터 오염 방지
       if (pendingReject) {
         pendingReject(new Error(`Whisper 프로세스 종료 (code ${code})`));
         pendingResolve = null;
