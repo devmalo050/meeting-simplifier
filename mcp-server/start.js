@@ -28,7 +28,7 @@ try {
 } catch {}
 
 // ── Whisper 설정 (여기서만 관리, setup.sh와 transcribe.py에 전달) ──
-export const WHISPER_MODEL = 'small';
+export const WHISPER_MODEL = 'medium';
 
 // npm install — MCP 서버 구동에 필수, 동기 실행
 if (!existsSync(path.join(pluginRoot, 'node_modules', '@modelcontextprotocol'))) {
