@@ -134,6 +134,11 @@ export async function transcribeAudio(audioPath, onProgress, language = null) {
   });
 }
 
+export function warmupWorker() {
+  // 백그라운드에서 Python worker를 미리 시작해 모델 로딩 완료 — 에러는 무시 (첫 transcribe 시 재시도)
+  getOrStartWorker().catch(() => {});
+}
+
 export function killActiveTranscription() {
   if (workerProc && !workerProc.killed) {
     try { workerProc.kill('SIGTERM'); } catch {}

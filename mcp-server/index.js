@@ -6,7 +6,7 @@ import { existsSync, readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import { startRecording, stopRecording, cleanupTempFiles, getLastAudioPath } from './recorder.js';
-import { transcribeAudio, killActiveTranscription } from './transcriber.js';
+import { transcribeAudio, killActiveTranscription, warmupWorker } from './transcriber.js';
 import { saveMeeting } from './exporter.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -112,3 +112,6 @@ process.on('SIGTERM', () => { killActiveTranscription(); cleanupTempFiles(); pro
 
 const transport = new StdioServerTransport();
 await server.connect(transport);
+
+// MCP 서버 시작 직후 Whisper 모델을 백그라운드에서 미리 로딩 (첫 변환 지연 제거)
+warmupWorker();
