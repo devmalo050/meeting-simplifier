@@ -159,6 +159,7 @@ export function cleanupTempFiles() {
   const state = readState();
   if (activeRecording) {
     try { activeRecording.recording.stop(); } catch {}
+    try { activeRecording.fileStream.destroy(); } catch {}
     try { fs.unlinkSync(activeRecording.tempPath); } catch {}
     activeRecording = null;
   }

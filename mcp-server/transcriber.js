@@ -60,6 +60,8 @@ function getOrStartWorker() {
     });
 
     proc.stdout.on('data', (d) => {
+      // 현재 활성 worker의 데이터만 처리 — 구 worker의 stale 응답이 새 요청을 오염시키지 않도록
+      if (workerProc !== proc && workerStarting === null) return;
       stdoutBuf += d.toString();
       let nl;
       while ((nl = stdoutBuf.indexOf('\n')) !== -1) {
