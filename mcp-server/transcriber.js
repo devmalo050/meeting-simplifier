@@ -19,6 +19,7 @@ function resolvePython() {
 
 let workerProc = null;
 let workerReady = false;
+let workerStarting = null;  // 시작 중인 worker Promise (동시 호출 방지)
 let pendingResolve = null;   // 현재 진행 중인 transcribe의 resolve
 let pendingReject = null;
 let stdoutBuf = '';
@@ -27,9 +28,11 @@ function getOrStartWorker() {
   if (workerProc && !workerProc.killed) {
     return Promise.resolve(workerProc);
   }
+  // 이미 시작 중인 worker가 있으면 같은 Promise 반환 (동시 중복 spawn 방지)
+  if (workerStarting) return workerStarting;
 
   stdoutBuf = ''; // 새 worker 시작 전 이전 stale 데이터 초기화
-  return new Promise((resolve, reject) => {
+  workerStarting = new Promise((resolve, reject) => {
     const python = resolvePython();
     const proc = spawn(python, [PYTHON_SCRIPT], {
       env: process.env,
@@ -42,6 +45,7 @@ function getOrStartWorker() {
         if (line.startsWith('READY:ok')) {
           workerReady = true;
           workerProc = proc;
+          workerStarting = null;
           resolve(proc);
         } else if (line.startsWith('READY:')) {
           // loading 메시지 — 무시
@@ -82,6 +86,7 @@ function getOrStartWorker() {
     proc.on('error', (err) => {
       workerProc = null;
       workerReady = false;
+      workerStarting = null;
       if (err.code === 'ENOENT') reject(new Error(`Python을 찾을 수 없습니다 (${python}). Python 3.9 이상을 설치해주세요.`));
       else reject(err);
       if (pendingReject) { pendingReject(err); pendingResolve = null; pendingReject = null; }
@@ -91,6 +96,7 @@ function getOrStartWorker() {
       const wasReady = workerReady; // close 전 상태 저장
       workerProc = null;
       workerReady = false;
+      workerStarting = null;
       if (pendingReject) {
         pendingReject(new Error(`Whisper 프로세스 종료 (code ${code})`));
         pendingResolve = null;
@@ -100,6 +106,7 @@ function getOrStartWorker() {
       if (!wasReady) reject(new Error(`Whisper 프로세스 시작 실패 (code ${code})`));
     });
   });
+  return workerStarting;
 }
 
 export async function transcribeAudio(audioPath, onProgress) {
@@ -114,6 +121,8 @@ export async function transcribeAudio(audioPath, onProgress) {
       // pendingReject 유무와 무관하게 항상 reject — 조건부면 타임아웃 에러 누락 가능
       pendingResolve = null;
       pendingReject = null;
+      // worker를 kill해 타임아웃된 이전 요청 결과가 다음 요청을 오염시키지 않도록
+      killActiveTranscription();
       reject(new Error('음성 변환 타임아웃 (10분 초과). 녹음 파일이 너무 크거나 시스템이 응답하지 않습니다.'));
     }, 10 * 60 * 1000); // 10분
 
