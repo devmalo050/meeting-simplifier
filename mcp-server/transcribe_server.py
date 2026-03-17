@@ -128,7 +128,6 @@ def _transcribe(model, audio_path, language=None):
     return {"transcript": transcript, "language": language}
 
 def main():
-    import multiprocessing
     whisper_model = os.environ.get("WHISPER_MODEL", "small")
     cpu_threads = int(os.environ.get("WHISPER_CPU_THREADS", min(os.cpu_count() or 4, 8)))
     print(f"READY:loading model={whisper_model} cpu_threads={cpu_threads}", file=sys.stderr, flush=True)

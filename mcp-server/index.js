@@ -60,7 +60,7 @@ server.registerTool('meeting_transcribe', {
     const output_language = settings.output_language ?? 'auto';
     const result = await transcribeAudio(audio_path, (current, total) => {
       process.stderr.write(`변환 중... ${current}/${total} 청크 완료\n`);
-    }, output_language);
+    }); // output_language는 회의록 작성 언어 설정 — Whisper 음성 인식 언어와 별개이므로 전달하지 않음
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
     process.stderr.write(`변환 완료 (${elapsed}초)\n`);
     return { content: [{ type: 'text', text: JSON.stringify({ ...result, elapsed_seconds: parseFloat(elapsed), output_language }) }] };
