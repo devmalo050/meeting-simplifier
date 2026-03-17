@@ -3,8 +3,18 @@ import recorder from 'node-record-lpcm16';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
+import { spawnSync } from 'child_process';
 
 const STATE_FILE = path.join(os.tmpdir(), 'meeting-simplifier-state.json');
+
+// Windows에서는 SIGTERM이 지원되지 않으므로 taskkill 사용
+function killProc(pid) {
+  if (process.platform === 'win32') {
+    spawnSync('taskkill', ['/PID', String(pid), '/F'], { encoding: 'utf8' });
+  } else {
+    process.kill(pid, 'SIGTERM');
+  }
+}
 const LAST_AUDIO_FILE = path.join(os.tmpdir(), 'meeting-simplifier-last-audio.json');
 
 export function getLastAudioPath() {
@@ -42,7 +52,7 @@ let activeRecording = null;
 {
   const stale = readState();
   if (stale && stale.serverPid !== process.pid) {
-    if (stale.recPid) { try { process.kill(stale.recPid, 'SIGTERM'); } catch {} }
+    if (stale.recPid) { try { killProc(stale.recPid); } catch {} }
     clearState();
   }
 }
@@ -132,7 +142,7 @@ export function stopRecording() {
   // 다른 프로세스에서 start한 경우 — rec 프로세스만 종료하고 파일 확정 대기
   clearState();
   if (recPid) {
-    try { process.kill(recPid, 'SIGTERM'); } catch {}
+    try { killProc(recPid); } catch {}
   }
 
   // 파일이 디스크에 플러시될 때까지 최대 5초 대기
