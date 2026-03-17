@@ -12,18 +12,34 @@ const pluginRoot = path.join(__dirname, '..');
 // ── 이전 버전 MCP 프로세스 종료 ─────────────────────────────────────────────
 // meeting-simplifier 관련 모든 node 프로세스를 찾아 현재 버전 경로가 아닌 것을 종료
 try {
-  const result = spawnSync('pgrep', ['-f', 'meeting-simplifier'], { encoding: 'utf8' });
-  const pids = result.stdout.trim().split('\n').filter(Boolean);
-  for (const pidStr of pids) {
-    const pid = parseInt(pidStr, 10);
-    if (!pid || pid === process.pid) continue;
-    try {
-      const cmdline = spawnSync('ps', ['-p', String(pid), '-o', 'args='], { encoding: 'utf8' }).stdout;
-      // meeting-simplifier 관련이지만 현재 pluginRoot(버전 경로)가 아닌 것만 종료
-      if (cmdline.includes('meeting-simplifier') && !cmdline.includes(pluginRoot)) {
-        process.kill(pid, 'SIGTERM');
+  if (process.platform === 'win32') {
+    // Windows: wmic으로 프로세스 목록 조회
+    const result = spawnSync('wmic', ['process', 'where', 'name="node.exe"', 'get', 'ProcessId,CommandLine', '/format:csv'], { encoding: 'utf8' });
+    for (const line of result.stdout.split('\n')) {
+      if (!line.includes('meeting-simplifier')) continue;
+      const match = line.match(/,(\d+)\s*$/);
+      if (!match) continue;
+      const pid = parseInt(match[1], 10);
+      if (!pid || pid === process.pid) continue;
+      if (!line.includes(pluginRoot)) {
+        spawnSync('taskkill', ['/PID', String(pid), '/F'], { encoding: 'utf8' });
       }
-    } catch {}
+    }
+  } else {
+    // macOS/Linux: pgrep + ps
+    const result = spawnSync('pgrep', ['-f', 'meeting-simplifier'], { encoding: 'utf8' });
+    const pids = result.stdout.trim().split('\n').filter(Boolean);
+    for (const pidStr of pids) {
+      const pid = parseInt(pidStr, 10);
+      if (!pid || pid === process.pid) continue;
+      try {
+        const cmdline = spawnSync('ps', ['-p', String(pid), '-o', 'args='], { encoding: 'utf8' }).stdout;
+        // meeting-simplifier 관련이지만 현재 pluginRoot(버전 경로)가 아닌 것만 종료
+        if (cmdline.includes('meeting-simplifier') && !cmdline.includes(pluginRoot)) {
+          process.kill(pid, 'SIGTERM');
+        }
+      } catch {}
+    }
   }
 } catch {}
 
@@ -46,15 +62,23 @@ if (!existsSync(path.join(pluginRoot, 'node_modules', '@modelcontextprotocol')))
 const venvPython = process.platform === 'win32'
   ? path.join(pluginRoot, '.venv', 'Scripts', 'python.exe')
   : path.join(pluginRoot, '.venv', 'bin', 'python');
+// Windows는 %USERPROFILE%\.cache, macOS/Linux는 ~/.cache
 const modelCache = path.join(os.homedir(), '.cache', 'huggingface', 'hub', `models--Systran--faster-whisper-${WHISPER_MODEL}`);
 
 if (!existsSync(venvPython) || !existsSync(modelCache)) {
-  const setupProc = spawn('bash', [path.join(pluginRoot, 'scripts', 'setup.sh')], {
-    cwd: pluginRoot,
-    env: { ...process.env, WHISPER_MODEL },
-    stdio: 'ignore',
-    detached: true,
-  });
+  const setupProc = process.platform === 'win32'
+    ? spawn('powershell', ['-ExecutionPolicy', 'Bypass', '-File', path.join(pluginRoot, 'scripts', 'setup.ps1')], {
+        cwd: pluginRoot,
+        env: { ...process.env, WHISPER_MODEL },
+        stdio: 'ignore',
+        detached: true,
+      })
+    : spawn('bash', [path.join(pluginRoot, 'scripts', 'setup.sh')], {
+        cwd: pluginRoot,
+        env: { ...process.env, WHISPER_MODEL },
+        stdio: 'ignore',
+        detached: true,
+      });
   setupProc.unref();
 }
 
