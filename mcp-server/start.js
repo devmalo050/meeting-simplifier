@@ -9,6 +9,30 @@ import path from 'path';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const pluginRoot = path.join(__dirname, '..');
 
+// ── 기존 start.js 인스턴스 종료 (중복 실행 방지) ────────────────────────────
+// start.js 프로세스만 타겟 — SIGTERM 포워딩으로 자식 index.js도 같이 종료됨
+import { spawnSync } from 'child_process';
+try {
+  if (process.platform === 'win32') {
+    const result = spawnSync('wmic', ['process', 'where', 'name="node.exe"', 'get', 'ProcessId,CommandLine', '/format:csv'], { encoding: 'utf8' });
+    for (const line of result.stdout.split('\n')) {
+      if (!line.includes('start.js') || !line.includes('meeting-simplifier')) continue;
+      const match = line.match(/,(\d+)\s*$/);
+      if (!match) continue;
+      const pid = parseInt(match[1], 10);
+      if (!pid || pid === process.pid) continue;
+      spawnSync('taskkill', ['/PID', String(pid), '/F'], { encoding: 'utf8' });
+    }
+  } else {
+    const result = spawnSync('pgrep', ['-f', 'mcp-server/start.js'], { encoding: 'utf8' });
+    for (const pidStr of result.stdout.trim().split('\n').filter(Boolean)) {
+      const pid = parseInt(pidStr, 10);
+      if (!pid || pid === process.pid) continue;
+      try { process.kill(pid, 'SIGTERM'); } catch {}
+    }
+  }
+} catch {}
+
 // ── Whisper 설정 (여기서만 관리, setup.sh와 transcribe.py에 전달) ──
 export const WHISPER_MODEL = 'medium';
 
