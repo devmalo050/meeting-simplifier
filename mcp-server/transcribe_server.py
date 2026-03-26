@@ -107,7 +107,7 @@ def _transcribe(model, audio_path, language=None):
             for i, chunk_path in enumerate(chunk_paths, 1):
                 print(f"PROGRESS:{i}/{total}", file=sys.stderr, flush=True)
                 segments, info = model.transcribe(chunk_path, language=lang_param, beam_size=1, vad_filter=True)
-                text = " ".join(s.text.strip() for s in segments)
+                text = "\n".join(s.text.strip() for s in segments)
                 all_text.append(text)
                 if detected_language is None:
                     detected_language = info.language
@@ -118,11 +118,11 @@ def _transcribe(model, audio_path, language=None):
                     try: os.unlink(p)
                     except: pass
             raise
-        transcript = " ".join(all_text)
+        transcript = "\n".join(all_text)
         language = detected_language
     else:
         segments, info = model.transcribe(audio_path, language=lang_param, beam_size=1, vad_filter=True)
-        transcript = " ".join(s.text.strip() for s in segments)
+        transcript = "\n".join(s.text.strip() for s in segments)
         language = info.language
 
     return {"transcript": transcript, "language": language}
