@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // mcp-server/start.js — 환경 자동 설치(node_modules + Python venv) 후 MCP 서버 시작
-import { execFileSync, spawnSync, spawn } from 'child_process';
+import { execFileSync, spawn } from 'child_process';
 import { existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 import os from 'os';
@@ -8,40 +8,6 @@ import path from 'path';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const pluginRoot = path.join(__dirname, '..');
-
-// ── 이전 버전 MCP 프로세스 종료 ─────────────────────────────────────────────
-// meeting-simplifier 관련 모든 node 프로세스를 찾아 현재 버전 경로가 아닌 것을 종료
-try {
-  if (process.platform === 'win32') {
-    // Windows: wmic으로 프로세스 목록 조회
-    const result = spawnSync('wmic', ['process', 'where', 'name="node.exe"', 'get', 'ProcessId,CommandLine', '/format:csv'], { encoding: 'utf8' });
-    for (const line of result.stdout.split('\n')) {
-      if (!line.includes('meeting-simplifier')) continue;
-      const match = line.match(/,(\d+)\s*$/);
-      if (!match) continue;
-      const pid = parseInt(match[1], 10);
-      if (!pid || pid === process.pid) continue;
-      if (!line.includes(pluginRoot)) {
-        spawnSync('taskkill', ['/PID', String(pid), '/F'], { encoding: 'utf8' });
-      }
-    }
-  } else {
-    // macOS/Linux: pgrep + ps
-    const result = spawnSync('pgrep', ['-f', 'meeting-simplifier'], { encoding: 'utf8' });
-    const pids = result.stdout.trim().split('\n').filter(Boolean);
-    for (const pidStr of pids) {
-      const pid = parseInt(pidStr, 10);
-      if (!pid || pid === process.pid) continue;
-      try {
-        const cmdline = spawnSync('ps', ['-p', String(pid), '-o', 'args='], { encoding: 'utf8' }).stdout;
-        // meeting-simplifier 관련이지만 현재 pluginRoot(버전 경로)가 아닌 것만 종료
-        if (cmdline.includes('meeting-simplifier') && !cmdline.includes(pluginRoot)) {
-          process.kill(pid, 'SIGTERM');
-        }
-      } catch {}
-    }
-  }
-} catch {}
 
 // ── Whisper 설정 (여기서만 관리, setup.sh와 transcribe.py에 전달) ──
 export const WHISPER_MODEL = 'medium';
