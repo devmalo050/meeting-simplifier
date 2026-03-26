@@ -108,45 +108,20 @@ export function stopRecording() {
     return Promise.resolve({ error: '진행 중인 녹음이 없습니다.' });
   }
 
-  const { tempPath, serverPid, recPid, startedAt } = state;
+  const { tempPath, recPid, startedAt } = state;
   const duration = startedAt ? Math.round((Date.now() - startedAt) / 1000) : null;
 
-  // 같은 프로세스에서 start한 경우 — 정상 종료
-  if (activeRecording && serverPid === process.pid) {
+  // activeRecording이 있으면 정상 종료, 없으면 recPid 직접 kill
+  // 어느 인스턴스가 stop을 받아도 동작하도록 통일
+  if (activeRecording) {
     const { recording, fileStream } = activeRecording;
-
-    return new Promise((resolve) => {
-      const onFinish = () => {
-        clearTimeout(timeout);
-        fileStream.removeListener('finish', onFinish);
-        activeRecording = null;
-        clearState();
-        saveLastAudioPath(tempPath);
-        resolve({ audio_path: tempPath, duration_seconds: duration });
-      };
-
-      const timeout = setTimeout(() => {
-        // finish 이벤트가 오지 않으면 강제로 스트림 종료 후 반환
-        fileStream.removeListener('finish', onFinish);
-        try { recording.stop(); } catch {}
-        try { fileStream.end(); } catch {}
-        activeRecording = null;
-        clearState();
-        saveLastAudioPath(tempPath);
-        resolve({ audio_path: tempPath, duration_seconds: duration });
-      }, 10000); // 10초 타임아웃
-
-      fileStream.once('finish', onFinish);
-      // end 리스너 먼저 등록 후 stop — stop 직후 end가 emit될 경우 리스너 누락 방지
-      recording.stream().once('end', () => fileStream.end());
-      recording.stop();
-    });
-  }
-
-  // 다른 프로세스에서 start한 경우 — rec 프로세스만 종료하고 파일 확정 대기
-  clearState();
-  if (recPid) {
-    try { killProc(recPid); } catch {}
+    activeRecording = null;
+    clearState();
+    try { recording.stop(); } catch {}
+    try { fileStream.end(); } catch {}
+  } else {
+    clearState();
+    if (recPid) { try { killProc(recPid); } catch {} }
   }
 
   // 파일이 디스크에 플러시될 때까지 최대 5초 대기
