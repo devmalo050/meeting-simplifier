@@ -47,19 +47,6 @@ function clearState() {
 // 인메모리 recording 핸들 (이 프로세스에서 start한 경우에만 유효)
 let activeRecording = null;
 
-// 서버 시작 시 이전 프로세스의 stale state 정리
-// serverPid가 실제로 죽어있을 때만 stale로 판단 (살아있으면 다른 인스턴스가 녹음 중)
-{
-  const stale = readState();
-  if (stale && stale.serverPid !== process.pid) {
-    let serverAlive = false;
-    try { process.kill(stale.serverPid, 0); serverAlive = true; } catch {}
-    if (!serverAlive) {
-      if (stale.recPid) { try { killProc(stale.recPid); } catch {} }
-      clearState();
-    }
-  }
-}
 
 export function startRecording() {
   if (readState()) {

@@ -108,7 +108,8 @@ server.registerTool('meeting_save', {
 });
 
 process.on('SIGINT', () => { killActiveTranscription(); cleanupTempFiles(); process.exit(0); });
-process.on('SIGTERM', () => { killActiveTranscription(); cleanupTempFiles(); process.exit(0); });
+// SIGTERM 시 녹음 중이면 state/파일 보존 (다른 인스턴스가 이어서 stop 처리)
+process.on('SIGTERM', () => { killActiveTranscription(); process.exit(0); });
 
 const transport = new StdioServerTransport();
 await server.connect(transport);
