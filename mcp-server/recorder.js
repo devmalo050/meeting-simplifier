@@ -48,12 +48,16 @@ function clearState() {
 let activeRecording = null;
 
 // 서버 시작 시 이전 프로세스의 stale state 정리
-// (reload 시 MCP 서버가 재시작되면 state 파일은 남지만 activeRecording은 사라짐)
+// serverPid가 실제로 죽어있을 때만 stale로 판단 (살아있으면 다른 인스턴스가 녹음 중)
 {
   const stale = readState();
   if (stale && stale.serverPid !== process.pid) {
-    if (stale.recPid) { try { killProc(stale.recPid); } catch {} }
-    clearState();
+    let serverAlive = false;
+    try { process.kill(stale.serverPid, 0); serverAlive = true; } catch {}
+    if (!serverAlive) {
+      if (stale.recPid) { try { killProc(stale.recPid); } catch {} }
+      clearState();
+    }
   }
 }
 

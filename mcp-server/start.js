@@ -21,7 +21,9 @@ try {
       if (!match) continue;
       const pid = parseInt(match[1], 10);
       if (!pid || pid === process.pid) continue;
-      spawnSync('taskkill', ['/PID', String(pid), '/F'], { encoding: 'utf8' });
+      if (!line.includes(pluginRoot)) {
+        spawnSync('taskkill', ['/PID', String(pid), '/F'], { encoding: 'utf8' });
+      }
     }
   } else {
     // macOS/Linux: pgrep + ps
@@ -32,8 +34,8 @@ try {
       if (!pid || pid === process.pid) continue;
       try {
         const cmdline = spawnSync('ps', ['-p', String(pid), '-o', 'args='], { encoding: 'utf8' }).stdout;
-        // meeting-simplifier 관련 프로세스는 현재 프로세스를 제외하고 모두 종료
-        if (cmdline.includes('meeting-simplifier')) {
+        // meeting-simplifier 관련이지만 현재 pluginRoot(버전 경로)가 아닌 것만 종료
+        if (cmdline.includes('meeting-simplifier') && !cmdline.includes(pluginRoot)) {
           process.kill(pid, 'SIGTERM');
         }
       } catch {}
