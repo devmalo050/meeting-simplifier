@@ -2,7 +2,7 @@
   "mcpServers": {
     "meeting-simplifier": {
       "command": "node",
-      "args": ["${CLAUDE_PLUGIN_ROOT}/mcp-server/start.js"]
+      "args": ["${CLAUDE_PLUGIN_ROOT}/mcp-server/index.js"]
     }
   }
 }
