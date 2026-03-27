@@ -28,10 +28,9 @@ export function startRecording() {
       recorder: process.platform === 'win32' ? 'sox' : 'rec',
     });
   } catch (err) {
+    fileStream.destroy();
     return { error: `녹음 시작 실패: ${err.message}\nsox/rec가 설치되어 있는지 확인하세요.` };
   }
-
-  recording.stream().pipe(fileStream);
 
   recording.stream().on('error', (err) => {
     if (err.message.includes('permission') || err.message.includes('access')) {
@@ -44,6 +43,14 @@ export function startRecording() {
     cleanupTempFiles();
   });
 
+  // fileStream 에러 처리 — 디스크 쓰기 실패 시 cleanup
+  fileStream.on('error', (err) => {
+    console.error(`파일 쓰기 실패: ${err.message}`);
+    cleanupTempFiles();
+  });
+
+  recording.stream().pipe(fileStream);
+
   activeRecording = { recording, tempPath, fileStream, startedAt: Date.now() };
   return { ok: true };
 }
@@ -55,29 +62,29 @@ export function stopRecording() {
 
   const { recording, tempPath, fileStream, startedAt } = activeRecording;
   const duration = Math.round((Date.now() - startedAt) / 1000);
-  activeRecording = null;
 
   try { recording.stop(); } catch {}
-  try { fileStream.end(); } catch {}
 
-  // 파일이 디스크에 플러시될 때까지 최대 5초 대기
+  // fileStream 'finish' 이벤트로 파일 플러시 완료 감지 (폴링 불필요)
   return new Promise((resolve) => {
-    let waited = 0;
-    const interval = setInterval(() => {
-      waited += 200;
+    fileStream.once('finish', () => {
+      activeRecording = null;
       try {
-        const size = fs.existsSync(tempPath) ? fs.statSync(tempPath).size : 0;
-        if (size > 0 || waited >= 5000) {
-          clearInterval(interval);
-          resolve(size > 0
-            ? { audio_path: tempPath, duration_seconds: duration }
-            : { error: '녹음 파일을 찾을 수 없습니다.' });
-        }
+        const size = fs.statSync(tempPath).size;
+        resolve(size > 0
+          ? { audio_path: tempPath, duration_seconds: duration }
+          : { error: '녹음 파일이 비어있습니다.' });
       } catch {
-        clearInterval(interval);
         resolve({ error: '녹음 파일을 찾을 수 없습니다.' });
       }
-    }, 200);
+    });
+
+    fileStream.once('error', (err) => {
+      activeRecording = null;
+      resolve({ error: `파일 쓰기 실패: ${err.message}` });
+    });
+
+    try { fileStream.end(); } catch {}
   });
 }
 
