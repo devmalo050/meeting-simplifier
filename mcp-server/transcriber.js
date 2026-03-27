@@ -1,6 +1,7 @@
 // mcp-server/transcriber.js
-// Python 프로세스를 상주시켜 모델 로딩 1회만 수행
+// Python worker를 상주시켜 모델 로딩 1회만 수행 — 단순 readline 방식
 import { spawn } from 'child_process';
+import { createInterface } from 'readline';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
@@ -19,130 +20,117 @@ function resolvePython() {
 
 let workerProc = null;
 let workerReady = false;
-let workerStarting = null;  // 시작 중인 worker Promise (동시 호출 방지)
-let pendingResolve = null;   // 현재 진행 중인 transcribe의 resolve
-let pendingReject = null;
-let stdoutBuf = '';
+let workerReadline = null;
 
-function getOrStartWorker() {
-  if (workerProc && !workerProc.killed) {
-    return Promise.resolve(workerProc);
-  }
-  // 이미 시작 중인 worker가 있으면 같은 Promise 반환 (동시 중복 spawn 방지)
-  if (workerStarting) return workerStarting;
-
-  stdoutBuf = ''; // 새 worker 시작 전 이전 stale 데이터 초기화
-  workerStarting = new Promise((resolve, reject) => {
-    const python = resolvePython();
-    const proc = spawn(python, [PYTHON_SCRIPT], {
-      env: process.env,
-      stdio: ['pipe', 'pipe', 'pipe'],
-    });
-
-    proc.stderr.on('data', (d) => {
-      const lines = d.toString().split('\n');
-      for (const line of lines) {
-        if (line.startsWith('READY:ok')) {
-          workerReady = true;
-          workerProc = proc;
-          workerStarting = null;
-          resolve(proc);
-        } else if (line.startsWith('READY:')) {
-          // loading 메시지 — 무시
-        } else if (line.startsWith('PROGRESS:')) {
-          const match = line.match(/PROGRESS:(\d+)\/(\d+)/);
-          const cb = proc._onProgress;
-          if (match && cb) cb(parseInt(match[1]), parseInt(match[2]));
-        } else if (line.trim()) {
-          process.stderr.write(`[transcriber] ${line}\n`);
-        }
-      }
-    });
-
-    proc.stdout.on('data', (d) => {
-      // 현재 활성 worker의 데이터만 처리 — 구 worker의 stale 응답이 새 요청을 오염시키지 않도록
-      if (workerProc !== proc) return;
-      stdoutBuf += d.toString();
-      let nl;
-      while ((nl = stdoutBuf.indexOf('\n')) !== -1) {
-        const jsonLine = stdoutBuf.slice(0, nl);
-        stdoutBuf = stdoutBuf.slice(nl + 1);
-        if (!jsonLine.trim()) continue;
-        if (pendingResolve) {
-          const res = pendingResolve;
-          const rej = pendingReject;
-          pendingResolve = null;
-          pendingReject = null;
-          try {
-            const result = JSON.parse(jsonLine);
-            if (result.error) rej(new Error(result.error));
-            else if (!result.transcript || result.transcript.trim() === '') rej(new Error('음성이 감지되지 않았습니다.'));
-            else res(result);
-          } catch {
-            rej(new Error(`Whisper 결과 파싱 실패: ${jsonLine}`));
-          }
-        }
-      }
-    });
-
-    proc.on('error', (err) => {
-      workerProc = null;
-      workerReady = false;
-      workerStarting = null;
-      if (err.code === 'ENOENT') reject(new Error(`Python을 찾을 수 없습니다 (${python}). Python 3.9 이상을 설치해주세요.`));
-      else reject(err);
-      if (pendingReject) { pendingReject(err); pendingResolve = null; pendingReject = null; }
-    });
-
-    proc.on('close', (code) => {
-      const wasReady = workerReady; // close 전 상태 저장
-      workerProc = null;
-      workerReady = false;
-      workerStarting = null;
-      if (pendingReject) {
-        pendingReject(new Error(`Whisper 프로세스 종료 (code ${code})`));
-        pendingResolve = null;
-        pendingReject = null;
-      }
-      // READY:ok를 받기 전에 종료된 경우에만 시작 실패 reject
-      if (!wasReady) reject(new Error(`Whisper 프로세스 시작 실패 (code ${code})`));
-    });
+function startWorker() {
+  const python = resolvePython();
+  const proc = spawn(python, [PYTHON_SCRIPT], {
+    env: process.env,
+    stdio: ['pipe', 'pipe', 'pipe'],
   });
-  return workerStarting;
+
+  workerProc = proc;
+  workerReady = false;
+
+  // readline으로 stdout 한 줄씩 읽기 (응답 대기에 사용)
+  workerReadline = createInterface({ input: proc.stdout, crlfDelay: Infinity });
+
+  proc.stderr.on('data', (d) => {
+    for (const line of d.toString().split('\n')) {
+      if (line.startsWith('READY:ok')) {
+        workerReady = true;
+      } else if (line.startsWith('PROGRESS:')) {
+        const match = line.match(/PROGRESS:(\d+)\/(\d+)/);
+        if (match && proc._onProgress) proc._onProgress(parseInt(match[1]), parseInt(match[2]));
+      } else if (line.trim() && !line.startsWith('READY:')) {
+        process.stderr.write(`[transcriber] ${line}\n`);
+      }
+    }
+  });
+
+  proc.on('error', (err) => {
+    workerProc = null;
+    workerReady = false;
+    workerReadline = null;
+  });
+
+  proc.on('close', () => {
+    workerProc = null;
+    workerReady = false;
+    workerReadline = null;
+  });
+
+  return proc;
 }
 
-export async function transcribeAudio(audioPath, onProgress, language = null) {
-  const proc = await getOrStartWorker();
+// worker가 READY:ok 상태가 될 때까지 대기 (최대 5분)
+function waitForReady(proc) {
+  return new Promise((resolve, reject) => {
+    if (workerReady) return resolve();
+    const timeout = setTimeout(() => reject(new Error('Whisper 모델 로딩 타임아웃 (5분 초과)')), 5 * 60 * 1000);
+    const check = setInterval(() => {
+      if (!workerProc || workerProc !== proc) {
+        clearInterval(check);
+        clearTimeout(timeout);
+        reject(new Error('Whisper worker 프로세스 종료됨'));
+      } else if (workerReady) {
+        clearInterval(check);
+        clearTimeout(timeout);
+        resolve();
+      }
+    }, 100);
+  });
+}
 
-  // onProgress 콜백을 stderr 핸들러에 연결 (요청별로 교체)
-  // stderr 이벤트는 getOrStartWorker에서 이미 등록됨 — onProgress를 교체
-  proc._onProgress = onProgress;
-
+// readline에서 다음 줄 비동기로 읽기
+function readNextLine(rl) {
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
-      // pendingReject 유무와 무관하게 항상 reject — 조건부면 타임아웃 에러 누락 가능
-      pendingResolve = null;
-      pendingReject = null;
-      // worker를 kill해 타임아웃된 이전 요청 결과가 다음 요청을 오염시키지 않도록
-      killActiveTranscription();
-      reject(new Error('음성 변환 타임아웃 (10분 초과). 녹음 파일이 너무 크거나 시스템이 응답하지 않습니다.'));
-    }, 10 * 60 * 1000); // 10분
+      reject(new Error('음성 변환 타임아웃 (10분 초과)'));
+    }, 10 * 60 * 1000);
 
-    pendingResolve = (result) => { clearTimeout(timeout); resolve(result); };
-    pendingReject = (err) => { clearTimeout(timeout); reject(err); };
-    proc.stdin.write(JSON.stringify({ audio_path: audioPath, language: language ?? null }) + '\n');
+    rl.once('line', (line) => {
+      clearTimeout(timeout);
+      resolve(line);
+    });
+    rl.once('close', () => {
+      clearTimeout(timeout);
+      reject(new Error('Whisper 프로세스가 예기치 않게 종료됨'));
+    });
   });
+}
+
+export async function transcribeAudio(audioPath, onProgress) {
+  // worker가 없거나 죽었으면 새로 시작
+  if (!workerProc || workerProc.killed) {
+    startWorker();
+  }
+
+  const proc = workerProc;
+  proc._onProgress = onProgress;
+
+  await waitForReady(proc);
+
+  proc.stdin.write(JSON.stringify({ audio_path: audioPath, language: null }) + '\n');
+
+  const line = await readNextLine(workerReadline);
+  const result = JSON.parse(line);
+  if (result.error) throw new Error(result.error);
+  if (!result.transcript || result.transcript.trim() === '') throw new Error('음성이 감지되지 않았습니다.');
+  return result;
 }
 
 export function warmupWorker() {
-  // 백그라운드에서 Python worker를 미리 시작해 모델 로딩 완료 — 에러는 무시 (첫 transcribe 시 재시도)
-  getOrStartWorker().catch(() => {});
+  if (!workerProc || workerProc.killed) {
+    startWorker();
+  }
 }
 
 export function killActiveTranscription() {
   if (workerProc && !workerProc.killed) {
     try { workerProc.kill('SIGTERM'); } catch {}
-    workerProc = null;
-    workerReady = false;
   }
+  workerProc = null;
+  workerReady = false;
+  workerReadline = null;
 }
