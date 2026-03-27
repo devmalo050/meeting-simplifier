@@ -2,15 +2,48 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
+import { execFileSync, spawn } from 'child_process';
 import { existsSync, readFileSync } from 'fs';
 import { fileURLToPath } from 'url';
 import path from 'path';
+import os from 'os';
 import { startRecording, stopRecording, cleanupTempFiles, getLastAudioPath } from './recorder.js';
 import { transcribeAudio, killActiveTranscription, warmupWorker } from './transcriber.js';
 import { saveMeeting } from './exporter.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PLUGIN_ROOT = path.join(__dirname, '..');
+
+const WHISPER_MODEL = process.env.WHISPER_MODEL ?? 'medium';
+
+// npm install — MCP 서버 구동에 필수
+if (!existsSync(path.join(PLUGIN_ROOT, 'node_modules', '@modelcontextprotocol'))) {
+  try {
+    execFileSync('npm', ['install', '--prefer-offline', '--quiet'], {
+      cwd: PLUGIN_ROOT,
+      stdio: ['ignore', 'ignore', 'inherit'],
+    });
+  } catch (e) {
+    process.stderr.write(`[meeting-simplifier] npm install 실패: ${e.message}\n`);
+  }
+}
+
+// setup.sh — venv/모델 설치, 백그라운드 실행
+const venvPython = process.platform === 'win32'
+  ? path.join(PLUGIN_ROOT, '.venv', 'Scripts', 'python.exe')
+  : path.join(PLUGIN_ROOT, '.venv', 'bin', 'python');
+const modelCache = path.join(os.homedir(), '.cache', 'huggingface', 'hub', `models--Systran--faster-whisper-${WHISPER_MODEL}`);
+
+if (!existsSync(venvPython) || !existsSync(modelCache)) {
+  const setupProc = process.platform === 'win32'
+    ? spawn('powershell', ['-ExecutionPolicy', 'Bypass', '-File', path.join(PLUGIN_ROOT, 'scripts', 'setup.ps1')], {
+        cwd: PLUGIN_ROOT, env: { ...process.env, WHISPER_MODEL }, stdio: 'ignore', detached: true,
+      })
+    : spawn('bash', [path.join(PLUGIN_ROOT, 'scripts', 'setup.sh')], {
+        cwd: PLUGIN_ROOT, env: { ...process.env, WHISPER_MODEL }, stdio: 'ignore', detached: true,
+      });
+  setupProc.unref();
+}
 
 function readSettings() {
   try {
@@ -108,8 +141,7 @@ server.registerTool('meeting_save', {
 });
 
 process.on('SIGINT', () => { killActiveTranscription(); cleanupTempFiles(); process.exit(0); });
-// SIGTERM 시 녹음 중이면 state/파일 보존 (다른 인스턴스가 이어서 stop 처리)
-process.on('SIGTERM', () => { killActiveTranscription(); process.exit(0); });
+process.on('SIGTERM', () => { killActiveTranscription(); cleanupTempFiles(); process.exit(0); });
 
 const transport = new StdioServerTransport();
 await server.connect(transport);
