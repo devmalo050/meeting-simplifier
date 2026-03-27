@@ -3,53 +3,16 @@ import recorder from 'node-record-lpcm16';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { spawnSync } from 'child_process';
 
-const STATE_FILE = path.join(os.tmpdir(), 'meeting-simplifier-state.json');
-
-// Windows에서는 SIGTERM이 지원되지 않으므로 taskkill 사용
-function killProc(pid) {
-  if (process.platform === 'win32') {
-    spawnSync('taskkill', ['/PID', String(pid), '/F'], { encoding: 'utf8' });
-  } else {
-    process.kill(pid, 'SIGTERM');
-  }
-}
-const LAST_AUDIO_FILE = path.join(os.tmpdir(), 'meeting-simplifier-last-audio.json');
-
-export function getLastAudioPath() {
-  try {
-    const d = JSON.parse(fs.readFileSync(LAST_AUDIO_FILE, 'utf8'));
-    return d.audio_path || null;
-  } catch { return null; }
-}
-
-function saveLastAudioPath(audioPath) {
-  fs.writeFileSync(LAST_AUDIO_FILE, JSON.stringify({ audio_path: audioPath }), 'utf8');
-}
-
-function readState() {
-  try {
-    return JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
-  } catch {
-    return null;
-  }
-}
-
-function writeState(state) {
-  fs.writeFileSync(STATE_FILE, JSON.stringify(state), 'utf8');
-}
-
-function clearState() {
-  try { fs.unlinkSync(STATE_FILE); } catch {}
-}
-
-// 인메모리 recording 핸들 (이 프로세스에서 start한 경우에만 유효)
+// 인메모리 recording 핸들 — 단일 인스턴스이므로 state 파일 불필요
 let activeRecording = null;
 
+export function getLastAudioPath() {
+  return activeRecording?.tempPath ?? null;
+}
 
 export function startRecording() {
-  if (readState()) {
+  if (activeRecording) {
     return { error: '이미 녹음 중입니다. 먼저 녹음을 중지해주세요.' };
   }
 
@@ -81,35 +44,21 @@ export function startRecording() {
     cleanupTempFiles();
   });
 
-  // rec 프로세스 PID를 state에 저장 (cross-process stop에 사용)
-  const recPid = recording.process?.pid ?? null;
-  activeRecording = { recording, tempPath, fileStream };
-  writeState({ tempPath, serverPid: process.pid, recPid, startedAt: Date.now() });
+  activeRecording = { recording, tempPath, fileStream, startedAt: Date.now() };
   return { ok: true };
 }
 
 export function stopRecording() {
-  const state = readState();
-
-  if (!state) {
+  if (!activeRecording) {
     return Promise.resolve({ error: '진행 중인 녹음이 없습니다.' });
   }
 
-  const { tempPath, recPid, startedAt } = state;
-  const duration = startedAt ? Math.round((Date.now() - startedAt) / 1000) : null;
+  const { recording, tempPath, fileStream, startedAt } = activeRecording;
+  const duration = Math.round((Date.now() - startedAt) / 1000);
+  activeRecording = null;
 
-  // activeRecording이 있으면 정상 종료, 없으면 recPid 직접 kill
-  // 어느 인스턴스가 stop을 받아도 동작하도록 통일
-  if (activeRecording) {
-    const { recording, fileStream } = activeRecording;
-    activeRecording = null;
-    clearState();
-    try { recording.stop(); } catch {}
-    try { fileStream.end(); } catch {}
-  } else {
-    clearState();
-    if (recPid) { try { killProc(recPid); } catch {} }
-  }
+  try { recording.stop(); } catch {}
+  try { fileStream.end(); } catch {}
 
   // 파일이 디스크에 플러시될 때까지 최대 5초 대기
   return new Promise((resolve) => {
@@ -120,8 +69,9 @@ export function stopRecording() {
         const size = fs.existsSync(tempPath) ? fs.statSync(tempPath).size : 0;
         if (size > 0 || waited >= 5000) {
           clearInterval(interval);
-          if (size > 0) saveLastAudioPath(tempPath);
-          resolve(size > 0 ? { audio_path: tempPath, duration_seconds: duration } : { error: '녹음 파일을 찾을 수 없습니다.' });
+          resolve(size > 0
+            ? { audio_path: tempPath, duration_seconds: duration }
+            : { error: '녹음 파일을 찾을 수 없습니다.' });
         }
       } catch {
         clearInterval(interval);
@@ -132,15 +82,9 @@ export function stopRecording() {
 }
 
 export function cleanupTempFiles() {
-  const state = readState();
-  if (activeRecording) {
-    try { activeRecording.recording.stop(); } catch {}
-    try { activeRecording.fileStream.destroy(); } catch {}
-    try { fs.unlinkSync(activeRecording.tempPath); } catch {}
-    activeRecording = null;
-  }
-  if (state) {
-    try { fs.unlinkSync(state.tempPath); } catch {}
-    clearState();
-  }
+  if (!activeRecording) return;
+  try { activeRecording.recording.stop(); } catch {}
+  try { activeRecording.fileStream.destroy(); } catch {}
+  try { fs.unlinkSync(activeRecording.tempPath); } catch {}
+  activeRecording = null;
 }
