@@ -81,9 +81,6 @@ server.registerTool('meeting_transcribe', {
   },
 }, async ({ audio_path }) => {
   // venv 준비 중 여부 확인 (설치/재설치 직후)
-  const venvPython = process.platform === 'win32'
-    ? path.join(PLUGIN_ROOT, '.venv', 'Scripts', 'python.exe')
-    : path.join(PLUGIN_ROOT, '.venv', 'bin', 'python');
   if (!existsSync(venvPython)) {
     return { content: [{ type: 'text', text: JSON.stringify({ error: '환경 설치가 아직 진행 중입니다. 1~2분 후 다시 시도해주세요.' }) }] };
   }
