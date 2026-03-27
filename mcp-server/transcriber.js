@@ -19,8 +19,11 @@ function resolvePython() {
 }
 
 let workerProc = null;
-let workerReady = false;
 let workerReadline = null;
+let workerReadyPromise = null; // READY:ok 이벤트 기반 대기 Promise
+
+// 동시 transcribeAudio 호출을 직렬화하기 위한 큐
+let transcribeQueue = Promise.resolve();
 
 function startWorker() {
   const python = resolvePython();
@@ -30,88 +33,93 @@ function startWorker() {
   });
 
   workerProc = proc;
-  workerReady = false;
-
-  // readline으로 stdout 한 줄씩 읽기 (응답 대기에 사용)
   workerReadline = createInterface({ input: proc.stdout, crlfDelay: Infinity });
 
-  proc.stderr.on('data', (d) => {
-    for (const line of d.toString().split('\n')) {
-      if (line.startsWith('READY:ok')) {
-        workerReady = true;
-      } else if (line.startsWith('PROGRESS:')) {
-        const match = line.match(/PROGRESS:(\d+)\/(\d+)/);
-        if (match && proc._onProgress) proc._onProgress(parseInt(match[1]), parseInt(match[2]));
-      } else if (line.trim() && !line.startsWith('READY:')) {
-        process.stderr.write(`[transcriber] ${line}\n`);
+  // READY:ok 이벤트 기반 대기 — 폴링 불필요
+  workerReadyPromise = new Promise((resolve, reject) => {
+    const timeout = setTimeout(
+      () => reject(new Error('Whisper 모델 로딩 타임아웃 (5분 초과)')),
+      5 * 60 * 1000
+    );
+    proc.stderr.on('data', function onStderr(d) {
+      for (const line of d.toString().split('\n')) {
+        if (line.startsWith('READY:ok')) {
+          clearTimeout(timeout);
+          proc.stderr.removeListener('data', onStderr);
+          resolve();
+        } else if (line.startsWith('PROGRESS:')) {
+          const match = line.match(/PROGRESS:(\d+)\/(\d+)/);
+          if (match && proc._onProgress) proc._onProgress(parseInt(match[1]), parseInt(match[2]));
+        } else if (line.trim() && !line.startsWith('READY:')) {
+          process.stderr.write(`[transcriber] ${line}\n`);
+        }
       }
-    }
+    });
+    proc.on('close', () => {
+      clearTimeout(timeout);
+      reject(new Error('Whisper worker 프로세스 종료됨'));
+    });
   });
 
-  proc.on('error', (err) => {
+  proc.on('error', () => {
     workerProc = null;
-    workerReady = false;
     workerReadline = null;
+    workerReadyPromise = null;
   });
 
   proc.on('close', () => {
     workerProc = null;
-    workerReady = false;
     workerReadline = null;
+    workerReadyPromise = null;
   });
 
   return proc;
 }
 
-// worker가 READY:ok 상태가 될 때까지 대기 (최대 5분)
-function waitForReady(proc) {
-  return new Promise((resolve, reject) => {
-    if (workerReady) return resolve();
-    const timeout = setTimeout(() => reject(new Error('Whisper 모델 로딩 타임아웃 (5분 초과)')), 5 * 60 * 1000);
-    const check = setInterval(() => {
-      if (!workerProc || workerProc !== proc) {
-        clearInterval(check);
-        clearTimeout(timeout);
-        reject(new Error('Whisper worker 프로세스 종료됨'));
-      } else if (workerReady) {
-        clearInterval(check);
-        clearTimeout(timeout);
-        resolve();
-      }
-    }, 100);
-  });
-}
-
-// readline에서 다음 줄 비동기로 읽기
+// readline에서 다음 줄 비동기로 읽기 — 상호 핸들러 제거로 누수 방지
 function readNextLine(rl) {
   return new Promise((resolve, reject) => {
     const timeout = setTimeout(() => {
+      rl.removeListener('line', onLine);
+      rl.removeListener('close', onClose);
       reject(new Error('음성 변환 타임아웃 (10분 초과)'));
     }, 10 * 60 * 1000);
 
-    rl.once('line', (line) => {
+    function onLine(line) {
       clearTimeout(timeout);
+      rl.removeListener('close', onClose);
       resolve(line);
-    });
-    rl.once('close', () => {
+    }
+
+    function onClose() {
       clearTimeout(timeout);
+      rl.removeListener('line', onLine);
       reject(new Error('Whisper 프로세스가 예기치 않게 종료됨'));
-    });
+    }
+
+    rl.once('line', onLine);
+    rl.once('close', onClose);
   });
 }
 
 export async function transcribeAudio(audioPath, onProgress) {
-  // worker가 없거나 죽었으면 새로 시작
+  // 동시 호출 직렬화 — 큐에 넣어 순차 실행
+  const result = await (transcribeQueue = transcribeQueue.then(() =>
+    _doTranscribe(audioPath, onProgress)
+  ));
+  return result;
+}
+
+async function _doTranscribe(audioPath, onProgress) {
   if (!workerProc || workerProc.killed) {
     startWorker();
   }
 
-  const proc = workerProc;
-  proc._onProgress = onProgress;
+  workerProc._onProgress = onProgress;
 
-  await waitForReady(proc);
+  await workerReadyPromise;
 
-  proc.stdin.write(JSON.stringify({ audio_path: audioPath, language: null }) + '\n');
+  workerProc.stdin.write(JSON.stringify({ audio_path: audioPath, language: null }) + '\n');
 
   const line = await readNextLine(workerReadline);
   const result = JSON.parse(line);
@@ -131,6 +139,6 @@ export function killActiveTranscription() {
     try { workerProc.kill('SIGTERM'); } catch {}
   }
   workerProc = null;
-  workerReady = false;
   workerReadline = null;
+  workerReadyPromise = null;
 }
