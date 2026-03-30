@@ -7,9 +7,12 @@ description: >
   "record meeting", "start recording", "start meeting"
 ---
 
-`meeting_record_start` 도구를 호출하세요.
+Bash 도구로 다음을 실행하세요:
 
-성공하면 다음과 같이 사용자에게 알려주세요:
-"녹음을 시작했습니다. 회의가 끝나면 '녹음 끝' 또는 '회의록 만들어줘' 라고 말씀해주세요."
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/start_recording.sh"
+```
 
-에러가 반환되면 에러 메시지를 그대로 사용자에게 전달하세요.
+결과 JSON을 파싱합니다:
+- `"ok": true` → "녹음을 시작했습니다. 회의가 끝나면 '녹음 끝' 또는 '회의록 만들어줘' 라고 말씀해주세요."
+- `"ok": false` → `error` 값을 사용자에게 전달하세요.

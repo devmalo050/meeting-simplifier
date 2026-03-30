@@ -10,16 +10,28 @@ description: >
 파일 경로가 없으면 사용자에게 파일 경로를 요청하세요.
 
 파일 확장자에 따라 처리합니다:
-- `.wav`, `.mp3`, `.m4a` → `meeting_transcribe` 도구로 먼저 변환 후, 결과의 `elapsed_seconds` 값을 사용해 "변환 완료 ({elapsed_seconds}초)"를 사용자에게 알린 뒤 진행
-- `.txt`, `.md` → 파일 내용을 직접 트랜스크립트로 사용
 
-이후 `/meeting-simplifier:stop` skill의 3~6번 단계와 동일하게 진행합니다.
-(회의록 작성 → `meeting_save` 호출 → 완료 안내)
+**오디오 파일 (`.wav`, `.mp3`, `.m4a`):**
 
-단, 텍스트 파일(.txt/.md) 입력의 경우 `meeting_transcribe`를 호출하지 않으므로 `output_language`를 알 수 없습니다.
-이 경우 `meeting_save` 결과의 `output_language` 값을 회의록 언어 결정에 사용하세요.
+Bash 도구로 변환합니다:
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/transcribe.sh" "<audio_path>"
+```
+- 호출 전 "텍스트 변환 중..."을 사용자에게 알립니다.
+- `error` 키가 있으면 에러 메시지를 전달하고 중단합니다.
+- 완료 후 "변환 완료"를 사용자에게 알립니다.
+- `transcript`와 `language` 값을 기억합니다.
 
-단, `meeting_save`의 `audio_path`는 오디오 파일인 경우 해당 파일 경로,
-텍스트 파일인 경우 빈 문자열("")을 전달합니다.
+**텍스트 파일 (`.txt`, `.md`):**
 
-`format`과 `output_dir`은 생략 가능합니다 (서버가 settings.json에서 자동으로 읽음).
+파일 내용을 직접 트랜스크립트로 사용합니다:
+```bash
+cat "<file_path>"
+```
+
+이후 `/meeting-simplifier:stop` skill의 3~7번 단계와 동일하게 진행합니다.
+(설정 읽기 → 회의록 작성 → save_meeting.py 호출 → 완료 안내)
+
+단, `save_meeting.py`의 `--audio-path`는:
+- 오디오 파일인 경우: 해당 파일 경로
+- 텍스트 파일인 경우: 빈 문자열 (인수 생략)

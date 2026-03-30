@@ -1,5 +1,6 @@
-# mcp-server/transcribe_server.py
-# 상주 프로세스: 모델을 한 번 로드하고 stdin에서 요청을 받아 처리
+# scripts/transcribe_server.py
+# --oneshot PATH: 단발성 변환 후 JSON 출력하고 종료 (bash skill에서 직접 호출)
+# 인수 없음: stdin 루프 (하위 호환)
 import sys
 import json
 import os
@@ -128,11 +129,24 @@ def _transcribe(model, audio_path, language=None):
     return {"transcript": transcript, "language": language}
 
 def main():
-    whisper_model = os.environ.get("WHISPER_MODEL", "small")
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--oneshot', metavar='AUDIO_PATH', help='단발성 변환 후 JSON 출력하고 종료')
+    args = parser.parse_args()
+
+    whisper_model = os.environ.get("WHISPER_MODEL", "medium")
     cpu_threads = int(os.environ.get("WHISPER_CPU_THREADS", min(os.cpu_count() or 4, 8)))
     print(f"READY:loading model={whisper_model} cpu_threads={cpu_threads}", file=sys.stderr, flush=True)
     model = WhisperModel(whisper_model, device="cpu", compute_type="int8", cpu_threads=cpu_threads)
     print("READY:ok", file=sys.stderr, flush=True)
+
+    if args.oneshot:
+        try:
+            result = transcribe(model, args.oneshot)
+            print(json.dumps(result, ensure_ascii=False), flush=True)
+        except Exception as e:
+            print(json.dumps({"error": str(e)}, ensure_ascii=False), flush=True)
+        return
 
     for line in sys.stdin:
         line = line.strip()

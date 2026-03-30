@@ -9,23 +9,34 @@ description: >
 
 다음 순서로 진행하세요:
 
-1. `meeting_record_stop` 도구를 호출하여 녹음을 중지합니다.
-   - 에러 반환 시 사용자에게 알리고 중단합니다.
-   - 완료 후 사용자에게 알립니다: "녹음 완료 — 녹음 시간: {duration_seconds}초"
+1. Bash 도구로 녹음을 중지합니다:
+   ```bash
+   bash "${CLAUDE_PLUGIN_ROOT}/scripts/stop_recording.sh"
+   ```
+   - `"ok": false` → 에러 메시지를 사용자에게 전달하고 중단합니다.
+   - `"ok": true` → "녹음 완료 — 녹음 시간: {duration_seconds}초"를 사용자에게 알립니다.
+   - `audio_path` 값을 기억합니다.
 
-2. `meeting_transcribe` 도구를 호출합니다. (`audio_path`는 1단계 결과의 `audio_path` 사용)
+2. Bash 도구로 텍스트 변환합니다:
+   ```bash
+   bash "${CLAUDE_PLUGIN_ROOT}/scripts/transcribe.sh" "<audio_path>"
+   ```
    - 호출 전 사용자에게 알립니다: "텍스트 변환 중..."
-   - 에러 반환 시 사용자에게 알리고 중단합니다.
-   - 완료 후 사용자에게 알립니다: "변환 완료 — {elapsed_seconds}초 소요"
+   - `error` 키가 있으면 에러 메시지를 사용자에게 전달하고 중단합니다.
+   - 완료 후 사용자에게 알립니다: "변환 완료"
+   - `transcript`와 `language` 값을 기억합니다.
 
-3. 트랜스크립트를 바탕으로 다음 항목을 분석합니다:
+3. settings.json에서 설정을 읽습니다:
+   ```bash
+   cat "${CLAUDE_PLUGIN_ROOT}/settings.json"
+   ```
+   - `output_language` 값을 확인합니다 (없으면 `"auto"` 사용).
+
+4. 트랜스크립트를 바탕으로 다음 항목을 분석합니다:
    - **회의 제목**: 내용을 보고 간결한 한국어 제목 생성 (예: "분기-마케팅-전략-회의")
-   - **언어**: 2단계 결과의 `output_language` 값을 사용합니다.
-     - `ko` → 한국어로 작성
-     - `en` → 영어로 작성
-     - `auto` 또는 없음 → 트랜스크립트의 주요 언어로 작성
+   - **언어**: `output_language`가 `ko` → 한국어, `en` → 영어, `auto` → 트랜스크립트 주요 언어로 작성
 
-4. 아래 형식으로 회의록 본문(마크다운)을 작성합니다:
+5. 아래 형식으로 회의록 본문(마크다운)을 작성합니다:
 
     # {회의 제목}
 
@@ -52,12 +63,23 @@ description: >
     ## 전체 트랜스크립트
     {transcript}
 
-5. `meeting_save` 도구를 호출합니다:
-   - `title`: 생성한 회의 제목
-   - `transcript`: Whisper 원문
-   - `minutes`: 위에서 작성한 회의록 본문
-   - `audio_path`: **1단계** `meeting_record_stop` 결과의 `audio_path` (절대 다른 값 사용 금지)
-   - `format`, `output_dir`: 생략 가능 (서버가 settings.json에서 자동으로 읽음)
+6. Bash 도구로 회의록을 저장합니다:
+   ```bash
+   MINUTES_FILE=$(mktemp /tmp/meeting-minutes-XXXX.md)
+   cat > "$MINUTES_FILE" << 'MINUTES_EOF'
+   {회의록 내용}
+   MINUTES_EOF
 
-6. 완료 후 사용자에게 알립니다:
-"회의록이 저장되었습니다: {saved_dir}"
+   python3 "${CLAUDE_PLUGIN_ROOT}/scripts/save_meeting.py" \
+     --title "{회의 제목}" \
+     --minutes-file "$MINUTES_FILE" \
+     --audio-path "<1단계 audio_path>" \
+     --format "$(python3 -c "import json; d=json.load(open('${CLAUDE_PLUGIN_ROOT}/settings.json')); print(d.get('meeting-simplifier',{}).get('output_format','md'))")" \
+     --output-dir "$(python3 -c "import json; d=json.load(open('${CLAUDE_PLUGIN_ROOT}/settings.json')); print(d.get('meeting-simplifier',{}).get('output_dir','~/Documents/meetings'))")"
+
+   rm -f "$MINUTES_FILE"
+   ```
+   - `error` 키가 있으면 에러 메시지를 사용자에게 전달합니다.
+
+7. 완료 후 사용자에게 알립니다:
+   "회의록이 저장되었습니다: {saved_dir}"

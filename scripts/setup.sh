@@ -1,5 +1,5 @@
 #!/bin/bash
-# scripts/setup.sh — sox, node_modules, faster-whisper(venv) 자동 설치
+# scripts/setup.sh — sox, faster-whisper(venv), python-docx 자동 설치
 
 PLUGIN_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
@@ -29,14 +29,7 @@ if ! command -v rec &>/dev/null; then
   fi
 fi
 
-# ── 2. node_modules 설치 ───────────────────────────────────────────────────
-if [ ! -d "$PLUGIN_ROOT/node_modules" ]; then
-  echo "📦 npm 패키지를 설치합니다..."
-  cd "$PLUGIN_ROOT" && npm install --quiet
-  [ $? -eq 0 ] && echo "✅ npm install 완료" || echo "❌ npm install 실패"
-fi
-
-# ── 3. Python 확인 ─────────────────────────────────────────────────────────
+# ── 2. Python 확인 ─────────────────────────────────────────────────────────
 PYTHON_CMD=""
 for cmd in python3 python; do
   if command -v "$cmd" &>/dev/null; then
@@ -58,10 +51,9 @@ if [ "$PY_MAJOR" -lt 3 ] || { [ "$PY_MAJOR" -eq 3 ] && [ "$PY_MINOR" -lt 9 ]; };
   exit 0
 fi
 
-# ── Whisper 모델 설정 (start.js에서 WHISPER_MODEL 환경변수로 전달, 없으면 small) ──
-WHISPER_MODEL="${WHISPER_MODEL:-small}"
+WHISPER_MODEL="${WHISPER_MODEL:-medium}"
 
-# ── 4. venv 생성 및 faster-whisper 설치 ────────────────────────────────────
+# ── 3. venv 생성 및 패키지 설치 ─────────────────────────────────────────────
 VENV_DIR="$PLUGIN_ROOT/.venv"
 VENV_PYTHON="$VENV_DIR/bin/python"
 
@@ -82,7 +74,14 @@ if ! "$VENV_PYTHON" -c "import faster_whisper" 2>/dev/null; then
   [ $? -eq 0 ] && echo "✅ faster-whisper 설치 완료" || echo "❌ faster-whisper 설치 실패. 수동으로 실행하세요: pip install faster-whisper"
 fi
 
-# ── 5. Whisper 모델 미리 다운로드 ─────────────────────────────────────────
+# python-docx가 venv에 없으면 설치
+if ! "$VENV_PYTHON" -c "import docx" 2>/dev/null; then
+  echo "📦 python-docx를 설치합니다..."
+  "$VENV_PYTHON" -m pip install python-docx --quiet
+  [ $? -eq 0 ] && echo "✅ python-docx 설치 완료" || echo "❌ python-docx 설치 실패"
+fi
+
+# ── 4. Whisper 모델 미리 다운로드 ─────────────────────────────────────────
 MODEL_CACHE="$HOME/.cache/huggingface/hub/models--Systran--faster-whisper-${WHISPER_MODEL}"
 if [ ! -d "$MODEL_CACHE" ]; then
   echo "📦 Whisper ${WHISPER_MODEL} 모델을 다운로드합니다 (최초 1회)..."

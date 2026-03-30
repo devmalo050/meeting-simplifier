@@ -1,6 +1,6 @@
-node_modules/
-package-lock.json
 *.wav
 *.tmp
 .venv
 .serena/
+__pycache__/
+*.pyc
