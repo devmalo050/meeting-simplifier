@@ -3,7 +3,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { z } from 'zod';
 import { execFileSync, spawn } from 'child_process';
-import { existsSync, readFileSync } from 'fs';
+import { existsSync, readFileSync, writeFileSync, unlinkSync } from 'fs';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import os from 'os';
@@ -13,6 +13,20 @@ import { saveMeeting } from './exporter.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PLUGIN_ROOT = path.join(__dirname, '..');
+
+// 기존 인스턴스 종료 — Claude Code가 세션마다 새 프로세스를 띄우고 이전 것을 kill하지 않아서 누적됨
+const PID_FILE = path.join(os.tmpdir(), 'meeting-simplifier.pid');
+try {
+  const oldPid = parseInt(readFileSync(PID_FILE, 'utf8'), 10);
+  if (oldPid && oldPid !== process.pid) {
+    try {
+      process.kill(oldPid, 'SIGTERM');
+      // 기존 프로세스가 PID 파일을 덮어쓰지 않도록 잠깐 대기
+      await new Promise(r => setTimeout(r, 300));
+    } catch {}
+  }
+} catch {}
+writeFileSync(PID_FILE, String(process.pid), 'utf8');
 
 const WHISPER_MODEL = process.env.WHISPER_MODEL ?? 'medium';
 
@@ -138,8 +152,14 @@ server.registerTool('meeting_save', {
   }
 });
 
-process.on('SIGINT', () => { killActiveTranscription(); cleanupTempFiles(); process.exit(0); });
-process.on('SIGTERM', () => { killActiveTranscription(); cleanupTempFiles(); process.exit(0); });
+function shutdown() {
+  killActiveTranscription();
+  cleanupTempFiles();
+  try { unlinkSync(PID_FILE); } catch {}
+  process.exit(0);
+}
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);
 
 const transport = new StdioServerTransport();
 await server.connect(transport);
