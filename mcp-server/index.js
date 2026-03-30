@@ -54,7 +54,8 @@ function readSettings() {
   }
 }
 
-const server = new McpServer({ name: 'meeting-simplifier', version: '1.0.0' });
+const { version } = JSON.parse(readFileSync(path.join(PLUGIN_ROOT, '.claude-plugin', 'plugin.json'), 'utf-8'));
+const server = new McpServer({ name: 'meeting-simplifier', version });
 
 server.registerTool('meeting_record_start', {
   description: '마이크 녹음을 시작합니다.',

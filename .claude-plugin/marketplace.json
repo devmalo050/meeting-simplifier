@@ -3,7 +3,7 @@
   "description": "회의를 녹음하고 Whisper + Claude로 회의록을 자동 생성하는 플러그인",
   "owner": {
     "name": "ain",
-    "email": ""
+    "email": "dev.malo050@gmail.com"
   },
   "plugins": [
     {
@@ -12,7 +12,7 @@
       "source": "./",
       "author": {
         "name": "ain",
-        "email": ""
+        "email": "dev.malo050@gmail.com"
       }
     }
   ]
