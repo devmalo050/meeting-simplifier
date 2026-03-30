@@ -76,6 +76,7 @@ server.registerTool('meeting_record_start', {
   inputSchema: {},
 }, async () => {
   const result = startRecording();
+  if (result.ok) warmupWorker(); // 녹음 중 모델 로딩 — 변환 시 대기 없음
   return { content: [{ type: 'text', text: JSON.stringify(result) }] };
 });
 
@@ -108,8 +109,10 @@ server.registerTool('meeting_transcribe', {
     }); // output_language는 회의록 작성 언어 설정 — Whisper 음성 인식 언어와 별개이므로 전달하지 않음
     const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
     process.stderr.write(`변환 완료 (${elapsed}초)\n`);
+    killActiveTranscription(); // 변환 완료 후 Python worker 종료
     return { content: [{ type: 'text', text: JSON.stringify({ ...result, elapsed_seconds: parseFloat(elapsed), output_language }) }] };
   } catch (err) {
+    killActiveTranscription(); // 실패해도 Python worker 종료
     return { content: [{ type: 'text', text: JSON.stringify({ error: err.message }) }] };
   }
 });
@@ -164,5 +167,3 @@ process.on('SIGTERM', shutdown);
 const transport = new StdioServerTransport();
 await server.connect(transport);
 
-// MCP 서버 시작 직후 Whisper 모델을 백그라운드에서 미리 로딩 (첫 변환 지연 제거)
-warmupWorker();
