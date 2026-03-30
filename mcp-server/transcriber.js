@@ -132,6 +132,8 @@ export function warmupWorker() {
   if (!workerProc || workerProc.killed) {
     startWorker();
   }
+  // 실패해도 MCP 서버는 계속 동작 — 변환 시 재시도
+  workerReadyPromise?.catch(() => {});
 }
 
 export function killActiveTranscription() {
