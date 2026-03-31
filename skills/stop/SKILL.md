@@ -63,23 +63,28 @@ description: >
     ## 전체 트랜스크립트
     {transcript}
 
-6. Bash 도구로 회의록을 저장합니다:
+6. Bash 도구로 settings.json을 읽어 저장 설정을 확인합니다:
    ```bash
+   cat "${CLAUDE_PLUGIN_ROOT}/settings.json"
+   ```
+   - `output_format` (기본값: `md`), `output_dir` (기본값: `~/Documents/meetings`) 값을 기억합니다.
+
+7. Bash 도구로 회의록을 저장합니다 (PLUGIN_ROOT, FORMAT, OUTPUT_DIR, AUDIO_PATH, TITLE은 실제 값으로 대체):
+   ```bash
+   PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT}"
    MINUTES_FILE=$(mktemp /tmp/meeting-minutes-XXXX.md)
    cat > "$MINUTES_FILE" << 'MINUTES_EOF'
-   {회의록 내용}
-   MINUTES_EOF
-
-   python3 "${CLAUDE_PLUGIN_ROOT}/scripts/save_meeting.py" \
+{회의록 내용}
+MINUTES_EOF
+   "$PLUGIN_ROOT/.venv/bin/python" "$PLUGIN_ROOT/scripts/save_meeting.py" \
      --title "{회의 제목}" \
      --minutes-file "$MINUTES_FILE" \
-     --audio-path "<1단계 audio_path>" \
-     --format "$(python3 -c "import json; d=json.load(open('${CLAUDE_PLUGIN_ROOT}/settings.json')); print(d.get('meeting-simplifier',{}).get('output_format','md'))")" \
-     --output-dir "$(python3 -c "import json; d=json.load(open('${CLAUDE_PLUGIN_ROOT}/settings.json')); print(d.get('meeting-simplifier',{}).get('output_dir','~/Documents/meetings'))")"
-
+     --audio-path "{1단계 audio_path}" \
+     --format "{output_format}" \
+     --output-dir "{output_dir}"
    rm -f "$MINUTES_FILE"
    ```
    - `error` 키가 있으면 에러 메시지를 사용자에게 전달합니다.
 
-7. 완료 후 사용자에게 알립니다:
+8. 완료 후 사용자에게 알립니다:
    "회의록이 저장되었습니다: {saved_dir}"

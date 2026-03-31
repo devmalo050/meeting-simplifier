@@ -29,7 +29,7 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/transcribe.sh" "<audio_path>"
 cat "<file_path>"
 ```
 
-이후 `/meeting-simplifier:stop` skill의 3~7번 단계와 동일하게 진행합니다.
+이후 `/meeting-simplifier:stop` skill의 3~8번 단계와 동일하게 진행합니다.
 (설정 읽기 → 회의록 작성 → save_meeting.py 호출 → 완료 안내)
 
 단, `save_meeting.py`의 `--audio-path`는:
