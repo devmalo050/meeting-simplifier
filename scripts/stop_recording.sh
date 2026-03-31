@@ -36,13 +36,6 @@ if [ ! -f "$WAV_PATH" ]; then
   exit 0
 fi
 
-# 48000Hz로 녹음됐을 경우 16000Hz로 리샘플링 (Whisper 최적 입력)
-ACTUAL_RATE=$(sox --i -r "$WAV_PATH" 2>/dev/null || echo "16000")
-if [ "$ACTUAL_RATE" != "16000" ]; then
-  RESAMPLED="${WAV_PATH%.wav}_16k.wav"
-  sox "$WAV_PATH" -r 16000 "$RESAMPLED" 2>/dev/null && mv "$RESAMPLED" "$WAV_PATH"
-fi
-
 # 녹음 시간 계산 (sox 사용)
 DURATION=$(sox --i -D "$WAV_PATH" 2>/dev/null | python3 -c "import sys; print(round(float(sys.stdin.read().strip()), 1))" 2>/dev/null || echo 0)
 
