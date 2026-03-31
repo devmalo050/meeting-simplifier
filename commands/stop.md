@@ -16,20 +16,19 @@ description: >
    - `"ok": true` → "녹음 완료 — 녹음 시간: {duration_seconds}초"를 사용자에게 알립니다.
    - `audio_path` 값을 기억합니다.
 
-2. Bash 도구로 텍스트 변환합니다:
-   ```bash
-   bash "${CLAUDE_PLUGIN_ROOT}/scripts/transcribe.sh" "<audio_path>"
-   ```
-   - 호출 전 사용자에게 알립니다: "텍스트 변환 중..."
-   - `error` 키가 있으면 에러 메시지를 사용자에게 전달하고 중단합니다.
-   - 완료 후 사용자에게 알립니다: "변환 완료"
-   - `transcript`와 `language` 값을 기억합니다.
-
-3. settings.json에서 설정을 읽습니다:
+2. Bash 도구로 settings.json을 읽습니다:
    ```bash
    cat "${CLAUDE_PLUGIN_ROOT}/settings.json"
    ```
-   - `output_language` 값을 확인합니다 (없으면 `"auto"` 사용).
+   - `output_language` (없으면 `"auto"`), `output_format` (없으면 `"md"`), `output_dir` (없으면 `"~/Documents/meetings"`) 값을 기억합니다.
+
+3. 사용자에게 "텍스트 변환 중..."을 알린 뒤, Bash 도구로 텍스트 변환합니다:
+   ```bash
+   bash "${CLAUDE_PLUGIN_ROOT}/scripts/transcribe.sh" "<1단계 audio_path>"
+   ```
+   - `error` 키가 있으면 에러 메시지를 사용자에게 전달하고 중단합니다.
+   - 완료 후 "변환 완료"를 사용자에게 알립니다.
+   - `transcript`와 `language` 값을 기억합니다.
 
 4. 트랜스크립트를 바탕으로 다음 항목을 분석합니다:
    - **회의 제목**: 내용을 보고 간결한 한국어 제목 생성 (예: "분기-마케팅-전략-회의")
@@ -62,15 +61,9 @@ description: >
     ## 전체 트랜스크립트
     {transcript}
 
-6. Bash 도구로 settings.json을 읽어 저장 설정을 확인합니다:
+6. Bash 도구로 회의록을 저장합니다:
    ```bash
-   cat "${CLAUDE_PLUGIN_ROOT}/settings.json"
-   ```
-   - `output_format` (기본값: `md`), `output_dir` (기본값: `~/Documents/meetings`) 값을 기억합니다.
-
-7. Bash 도구로 회의록을 저장합니다 (PLUGIN_ROOT, FORMAT, OUTPUT_DIR, AUDIO_PATH, TITLE은 실제 값으로 대체):
-   ```bash
-   PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT}"
+   PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT%/}"
    MINUTES_FILE=$(mktemp /tmp/meeting-minutes-XXXX.md)
    cat > "$MINUTES_FILE" << 'MINUTES_EOF'
 {회의록 내용}
@@ -85,5 +78,5 @@ MINUTES_EOF
    ```
    - `error` 키가 있으면 에러 메시지를 사용자에게 전달합니다.
 
-8. 완료 후 사용자에게 알립니다:
+7. 완료 후 사용자에게 알립니다:
    "회의록이 저장되었습니다: {saved_dir}"
