@@ -30,7 +30,7 @@ if ! command -v rec &>/dev/null; then
 fi
 
 # 백그라운드 녹음 시작
-rec -q -r 16000 -c 1 -b 16 -e signed-integer "$WAV_PATH" &
+rec -q -r 16000 -c 1 -b 16 -e signed-integer "$WAV_PATH" 2>/dev/null &
 REC_PID=$!
 
 # 프로세스 확인
