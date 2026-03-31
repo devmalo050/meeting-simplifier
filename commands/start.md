@@ -9,7 +9,8 @@ description: >
 Bash 도구로 다음을 실행하세요:
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/start_recording.sh"
+PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT%/}"
+bash "$PLUGIN_ROOT/scripts/start_recording.sh"
 ```
 
 결과 JSON을 파싱합니다:
