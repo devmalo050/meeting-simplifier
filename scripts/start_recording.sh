@@ -43,18 +43,24 @@ fi
 echo "$REC_PID" > "$PID_FILE"
 echo "$WAV_PATH" > "$AUDIO_FILE"
 
-# warmup: transcribe_server.py를 백그라운드에서 미리 로딩 (모델 캐시)
+# warmup: 무음 1초짜리 wav로 --oneshot 실행 → 모델을 OS 페이지 캐시에 올림
+# 녹음하는 동안 백그라운드에서 완료되므로 변환 시점엔 이미 캐시됨
 VENV_PYTHON="$PLUGIN_ROOT/.venv/bin/python"
 WHISPER_MODEL="${WHISPER_MODEL:-medium}"
-WARMUP_PID_FILE="$PID_DIR/warmup.pid"
+WARMUP_DONE="$PID_DIR/warmup.done"
 
-if [ -f "$VENV_PYTHON" ] && [ ! -f "$WARMUP_PID_FILE" ]; then
+if [ -f "$VENV_PYTHON" ] && [ ! -f "$WARMUP_DONE" ]; then
   (
-    WHISPER_MODEL="$WHISPER_MODEL" "$VENV_PYTHON" "$PLUGIN_ROOT/scripts/transcribe_server.py" \
-      2>"$PID_DIR/warmup.log" &
-    echo $! > "$WARMUP_PID_FILE"
-    wait $!
-    rm -f "$WARMUP_PID_FILE"
+    # 무음 1초 wav 생성 (sox)
+    DUMMY_WAV=$(mktemp /tmp/warmup-XXXX.wav)
+    sox -n -r 16000 -c 1 -b 16 "$DUMMY_WAV" trim 0.0 1.0 2>/dev/null
+    if [ -f "$DUMMY_WAV" ]; then
+      WHISPER_MODEL="$WHISPER_MODEL" "$VENV_PYTHON" \
+        "$PLUGIN_ROOT/scripts/transcribe_server.py" \
+        --oneshot "$DUMMY_WAV" >/dev/null 2>&1
+      rm -f "$DUMMY_WAV"
+      touch "$WARMUP_DONE"
+    fi
   ) &
 fi
 

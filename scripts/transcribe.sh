@@ -23,19 +23,8 @@ if [ ! -f "$VENV_PYTHON" ]; then
 fi
 
 WHISPER_MODEL="${WHISPER_MODEL:-medium}"
-PID_DIR="/tmp/meeting-simplifier"
-WARMUP_PID_FILE="$PID_DIR/warmup.pid"
 
-# warmup 프로세스가 있으면 종료 (--oneshot으로 새로 실행)
-if [ -f "$WARMUP_PID_FILE" ]; then
-  WARMUP_PID=$(cat "$WARMUP_PID_FILE" 2>/dev/null)
-  if [ -n "$WARMUP_PID" ]; then
-    kill "$WARMUP_PID" 2>/dev/null
-  fi
-  rm -f "$WARMUP_PID_FILE"
-fi
-
-# 변환 실행 (stdout = JSON 결과)
+# 변환 실행 (모델이 OS 페이지 캐시에 있으면 빠름)
 WHISPER_MODEL="$WHISPER_MODEL" "$VENV_PYTHON" \
   "$PLUGIN_ROOT/scripts/transcribe_server.py" \
   --oneshot "$AUDIO_PATH"
