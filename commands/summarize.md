@@ -14,8 +14,7 @@ description: >
 
 Bash 도구로 변환합니다:
 ```bash
-PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT%/}"
-bash "$PLUGIN_ROOT/scripts/transcribe.sh" "<audio_path>"
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/transcribe.sh" "<audio_path>"
 ```
 - 호출 전 "텍스트 변환 중..."을 사용자에게 알립니다.
 - `error` 키가 있으면 에러 메시지를 전달하고 중단합니다.

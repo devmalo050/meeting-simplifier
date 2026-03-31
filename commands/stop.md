@@ -10,8 +10,7 @@ description: >
 
 1. Bash 도구로 녹음을 중지합니다:
    ```bash
-   PLUGIN_ROOT="${CLAUDE_PLUGIN_ROOT%/}"
-   bash "$PLUGIN_ROOT/scripts/stop_recording.sh"
+   bash "${CLAUDE_PLUGIN_ROOT}/scripts/stop_recording.sh"
    ```
    - `"ok": false` → 에러 메시지를 사용자에게 전달하고 중단합니다.
    - `"ok": true` → "녹음 완료 — 녹음 시간: {duration_seconds}초"를 사용자에게 알립니다.
@@ -19,7 +18,7 @@ description: >
 
 2. Bash 도구로 텍스트 변환합니다:
    ```bash
-   bash "$PLUGIN_ROOT/scripts/transcribe.sh" "<audio_path>"
+   bash "${CLAUDE_PLUGIN_ROOT}/scripts/transcribe.sh" "<audio_path>"
    ```
    - 호출 전 사용자에게 알립니다: "텍스트 변환 중..."
    - `error` 키가 있으면 에러 메시지를 사용자에게 전달하고 중단합니다.
@@ -28,7 +27,7 @@ description: >
 
 3. settings.json에서 설정을 읽습니다:
    ```bash
-   cat "$PLUGIN_ROOT/settings.json"
+   cat "${CLAUDE_PLUGIN_ROOT}/settings.json"
    ```
    - `output_language` 값을 확인합니다 (없으면 `"auto"` 사용).
 
@@ -65,7 +64,7 @@ description: >
 
 6. Bash 도구로 settings.json을 읽어 저장 설정을 확인합니다:
    ```bash
-   cat "$PLUGIN_ROOT/settings.json"
+   cat "${CLAUDE_PLUGIN_ROOT}/settings.json"
    ```
    - `output_format` (기본값: `md`), `output_dir` (기본값: `~/Documents/meetings`) 값을 기억합니다.
 
