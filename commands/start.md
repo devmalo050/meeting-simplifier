@@ -9,7 +9,7 @@ description: >
 Bash 도구로 다음을 실행하세요:
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/start_recording.sh"
+bash ~/.claude/plugins/marketplaces/meeting-simplifier/scripts/start_recording.sh
 ```
 
 결과 JSON을 파싱합니다:
