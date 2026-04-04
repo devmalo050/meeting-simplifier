@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "PLUGIN_DIR=~/.claude/plugins/marketplaces/meeting-simplifier; if [ ! -f \"$PLUGIN_DIR/.setup-complete\" ]; then bash \"$PLUGIN_DIR/scripts/setup.sh\" && touch \"$PLUGIN_DIR/.setup-complete\"; fi"
+            "command": "DATA_DIR=~/.claude/plugins/data/meeting-simplifier-meeting-simplifier; mkdir -p \"$DATA_DIR\"; if [ ! -f \"$DATA_DIR/.setup-complete\" ]; then bash ~/.claude/plugins/marketplaces/meeting-simplifier/scripts/setup.sh && touch \"$DATA_DIR/.setup-complete\"; fi"
           }
         ]
       }
