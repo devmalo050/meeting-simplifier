@@ -1,0 +1,14 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "PLUGIN_DIR=~/.claude/plugins/marketplaces/meeting-simplifier; if [ ! -f \"$PLUGIN_DIR/.setup-complete\" ]; then bash \"$PLUGIN_DIR/scripts/setup.sh\" && touch \"$PLUGIN_DIR/.setup-complete\"; fi"
+          }
+        ]
+      }
+    ]
+  }
+}
