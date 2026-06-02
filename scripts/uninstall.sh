@@ -31,11 +31,16 @@ for w in /tmp/warmup-*.wav; do
   [ -e "$w" ] && remove "$w" "warmup 임시 wav"
 done
 
-# 설치 완료 마커 + 로그
-remove "$HOME/.claude/plugins/data/meeting-simplifier-meeting-simplifier" "설치 마커/로그"
+# 설치 완료 마커 + 로그 + 가상환경 (data 디렉토리에 통합 저장됨)
+remove "$HOME/.claude/plugins/data/meeting-simplifier-meeting-simplifier" "설치 마커/로그/가상환경"
 
-# 플러그인 가상환경
-remove "$PLUGIN_ROOT/.venv" "Python 가상환경"
+# 구버전이 버전 폴더 안에 만들던 .venv 잔여물 (v1.4.16 이하)
+for v in "$HOME"/.claude/plugins/cache/*/meeting-simplifier/*/.venv; do
+  [ -d "$v" ] && remove "$v" "구버전 가상환경 잔여물"
+done
+
+# 로컬 클론(소스)에서 직접 쓴 경우의 가상환경
+remove "$PLUGIN_ROOT/.venv" "로컬 가상환경"
 
 echo ""
 echo "✅ 정리 완료."

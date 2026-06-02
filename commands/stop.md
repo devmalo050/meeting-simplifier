@@ -63,11 +63,12 @@ description: >
    PLUGIN_DIR=$(ls -d ~/.claude/plugins/cache/*/meeting-simplifier/*/ 2>/dev/null | sort -V | tail -1)
    [ -z "$PLUGIN_DIR" ] && PLUGIN_DIR=~/.claude/plugins/marketplaces/meeting-simplifier
    PLUGIN_DIR="${PLUGIN_DIR%/}"
+   VENV_PY="$HOME/.claude/plugins/data/meeting-simplifier-meeting-simplifier/.venv/bin/python"
    MINUTES_FILE=$(mktemp /tmp/meeting-minutes-XXXX.md)
    cat > "$MINUTES_FILE" << 'MINUTES_EOF'
 {회의록 내용}
 MINUTES_EOF
-   "$PLUGIN_DIR/.venv/bin/python" "$PLUGIN_DIR/scripts/save_meeting.py" \
+   "$VENV_PY" "$PLUGIN_DIR/scripts/save_meeting.py" \
      --title "{회의 제목}" \
      --minutes-file "$MINUTES_FILE" \
      --audio-path "{1단계 audio_path}" \

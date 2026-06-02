@@ -277,6 +277,14 @@ Skill의 `description` 필드에 다양한 트리거 패턴을 정의해 Claude�
 
 ## 변경 이력
 
+### v1.4.17 — venv를 버전 독립 위치로 이동 (버전 누적 방지)
+
+`setup.sh`가 `.venv`(~235MB)를 버전별 설치 폴더(`cache/.../<version>/.venv`)에 만들던 것이
+버전 업데이트마다 재설치되고 옛 버전 폴더를 무겁게 만들어 호스트의 자동 정리를 방해하던 문제 수정.
+
+- **원인:** 버전 폴더 안의 무거운 `.venv`가 호스트(Claude Code)의 옛 버전 삭제를 막아 누적됨(공식 플러그인은 코드만 있어 1버전만 유지됨).
+- **수정:** venv 위치를 `~/.claude/plugins/data/meeting-simplifier-meeting-simplifier/.venv`(버전 무관)로 이동. `setup.sh`/`transcribe.sh`/`start_recording.sh`/`stop.md`가 모두 이 경로 참조. 버전 폴더는 코드만 남아 가벼워지고 venv는 재사용됨. `uninstall.sh`는 구버전 폴더의 잔여 `.venv`도 청소.
+
 ### v1.4.16 — 전체 트랜스크립트 잘림 방지
 
 긴 트랜스크립트가 회의록의 "전체 트랜스크립트" 섹션에서 잘리던 문제 수정.

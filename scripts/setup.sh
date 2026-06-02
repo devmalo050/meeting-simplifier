@@ -59,8 +59,11 @@ fi
 WHISPER_MODEL="${WHISPER_MODEL:-medium}"
 
 # ── 3. venv 생성 및 패키지 설치 ─────────────────────────────────────────────
-VENV_DIR="$PLUGIN_ROOT/.venv"
+# venv는 버전별 설치 폴더가 아니라 버전 독립 data 디렉토리에 둔다.
+# (버전 업데이트마다 235MB 재설치 + 옛 버전 폴더에 .venv가 무겁게 잔존하는 것을 방지)
+VENV_DIR="$HOME/.claude/plugins/data/meeting-simplifier-meeting-simplifier/.venv"
 VENV_PYTHON="$VENV_DIR/bin/python"
+mkdir -p "$(dirname "$VENV_DIR")"
 
 if [ ! -f "$VENV_PYTHON" ]; then
   echo "📦 Python 가상환경을 생성합니다..."

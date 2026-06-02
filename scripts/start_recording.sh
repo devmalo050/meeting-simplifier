@@ -50,7 +50,7 @@ echo "$WAV_PATH" > "$AUDIO_FILE"
 
 # warmup: 무음 1초짜리 wav로 --oneshot 실행 → 모델을 OS 페이지 캐시에 올림
 # 녹음하는 동안 백그라운드에서 완료되므로 변환 시점엔 이미 캐시됨
-VENV_PYTHON="$PLUGIN_ROOT/.venv/bin/python"
+VENV_PYTHON="$HOME/.claude/plugins/data/meeting-simplifier-meeting-simplifier/.venv/bin/python"
 WHISPER_MODEL="${WHISPER_MODEL:-medium}"
 WARMUP_DONE="$PID_DIR/warmup.done"
 
