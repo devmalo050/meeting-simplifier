@@ -20,17 +20,17 @@ bash "$PLUGIN_DIR/scripts/transcribe.sh" "<file_path>"
 ```
 - `error` 키가 있으면 에러 메시지를 전달하고 중단합니다.
 - 완료 후 "변환 완료"를 알립니다.
-- `transcript`와 `language` 값을 기억합니다.
+- `transcript`, `language`, `transcript_file` 값을 기억합니다.
 
 **텍스트 파일 (`.txt`, `.md`):**
 ```bash
 cat "<file_path>"
 ```
-파일 내용을 트랜스크립트로 사용합니다.
+파일 내용을 트랜스크립트로 사용합니다. 이 경우 트랜스크립트 파일은 원본 `<file_path>` 자체입니다.
 
 이후 `/meeting-simplifier:stop` 커맨드의 3~6번 단계와 동일하게 진행합니다.
 (회의록 작성 → save_meeting.py 호출 → 완료 안내)
 
-단, `save_meeting.py`의 `--audio-path`는:
-- 오디오 파일인 경우: 해당 파일 경로
-- 텍스트 파일인 경우: 생략
+단, `save_meeting.py`의 인자는:
+- `--audio-path`: 오디오 파일이면 해당 파일 경로, 텍스트 파일이면 생략
+- `--transcript-file`: 오디오 파일이면 변환 결과의 `transcript_file`, 텍스트 파일이면 원본 파일 경로(`<file_path>`)

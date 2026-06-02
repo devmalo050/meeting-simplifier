@@ -39,7 +39,14 @@ def save_docx(file_path, title, minutes):
     doc.save(file_path)
 
 
-def save_meeting(title, minutes, audio_path, fmt, output_dir):
+def save_meeting(title, minutes, audio_path, fmt, output_dir, transcript_file=''):
+    # 전체 트랜스크립트는 LLM 본문이 아니라 파일에서 직접 붙인다 (길어도 잘리지 않도록)
+    if transcript_file and os.path.exists(transcript_file):
+        with open(transcript_file, 'r', encoding='utf-8') as tf:
+            transcript_text = tf.read().strip()
+        if transcript_text:
+            minutes = minutes.rstrip() + "\n\n## 전체 트랜스크립트\n\n" + transcript_text + "\n"
+
     resolved_base = str(Path(output_dir).expanduser())
     now = datetime.now()
     date_str = now.strftime('%Y-%m-%d')
@@ -90,6 +97,7 @@ def main():
     parser.add_argument('--audio-path', default='')
     parser.add_argument('--format', default='md', choices=['md', 'txt', 'docx'])
     parser.add_argument('--output-dir', default='~/Documents/meetings')
+    parser.add_argument('--transcript-file', default='', help='전체 트랜스크립트가 담긴 파일 경로 (본문 끝에 코드로 추가됨)')
     args = parser.parse_args()
 
     with open(args.minutes_file, 'r', encoding='utf-8') as f:
@@ -102,6 +110,7 @@ def main():
             audio_path=args.audio_path or '',
             fmt=args.format,
             output_dir=args.output_dir,
+            transcript_file=args.transcript_file or '',
         )
         print(json.dumps(result, ensure_ascii=False))
     except Exception as e:

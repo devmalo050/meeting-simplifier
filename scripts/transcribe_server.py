@@ -143,6 +143,18 @@ def main():
 
     try:
         result = transcribe(model, args.oneshot)
+        # 트랜스크립트 전문을 파일로 저장한다. 회의록의 "전체 트랜스크립트"는 save_meeting.py가
+        # 이 파일을 읽어 코드로 붙이므로, LLM이 긴 트랜스크립트를 다시 타이핑하다 잘리는 일이 없다.
+        try:
+            out_dir = "/tmp/meeting-simplifier"
+            os.makedirs(out_dir, exist_ok=True)
+            stem = os.path.splitext(os.path.basename(args.oneshot))[0]
+            tfile = os.path.join(out_dir, f"transcript_{stem}.txt")
+            with open(tfile, "w", encoding="utf-8") as f:
+                f.write(result.get("transcript", ""))
+            result["transcript_file"] = tfile
+        except Exception:
+            pass
         print(json.dumps(result, ensure_ascii=False), flush=True)
     except Exception as e:
         print(json.dumps({"error": str(e)}, ensure_ascii=False), flush=True)

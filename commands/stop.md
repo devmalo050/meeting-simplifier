@@ -28,13 +28,14 @@ description: >
    ```
    - `error` 키가 있으면 에러 메시지를 사용자에게 전달하고 중단합니다.
    - 완료 후 "변환 완료"를 사용자에게 알립니다.
-   - `transcript`와 `language` 값을 기억합니다.
+   - `transcript`, `language`, `transcript_file` 값을 기억합니다.
 
 3. 트랜스크립트를 바탕으로 다음 항목을 분석합니다:
    - **회의 제목**: 내용을 보고 간결한 한국어 제목 생성 (예: "분기-마케팅-전략-회의")
    - **언어**: 트랜스크립트의 주요 언어로 작성
 
-4. 아래 형식으로 회의록 본문(마크다운)을 작성합니다:
+4. 아래 형식으로 회의록 본문(마크다운)을 작성합니다.
+   **"전체 트랜스크립트" 섹션은 저장 시 코드가 자동으로 붙이므로 본문에 직접 넣지 마세요** (길어도 잘리지 않게 하기 위함입니다):
 
     # {회의 제목}
 
@@ -57,9 +58,6 @@ description: >
     ## 발화 내용
     (화자 구분이 가능한 경우만 포함. 단일 화자이거나 구분 불가 시 이 섹션 생략)
 
-    ## 전체 트랜스크립트
-    {transcript}
-
 5. Bash 도구로 회의록을 저장합니다:
    ```bash
    PLUGIN_DIR=$(ls -d ~/.claude/plugins/cache/*/meeting-simplifier/*/ 2>/dev/null | sort -V | tail -1)
@@ -72,7 +70,8 @@ MINUTES_EOF
    "$PLUGIN_DIR/.venv/bin/python" "$PLUGIN_DIR/scripts/save_meeting.py" \
      --title "{회의 제목}" \
      --minutes-file "$MINUTES_FILE" \
-     --audio-path "{1단계 audio_path}"
+     --audio-path "{1단계 audio_path}" \
+     --transcript-file "{2단계 transcript_file}"
    rm -f "$MINUTES_FILE"
    ```
    - `error` 키가 있으면 에러 메시지를 사용자에게 전달합니다.

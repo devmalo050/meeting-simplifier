@@ -277,6 +277,13 @@ Skill의 `description` 필드에 다양한 트리거 패턴을 정의해 Claude�
 
 ## 변경 이력
 
+### v1.4.16 — 전체 트랜스크립트 잘림 방지
+
+긴 트랜스크립트가 회의록의 "전체 트랜스크립트" 섹션에서 잘리던 문제 수정.
+
+- **근본 원인:** 트랜스크립트 전문을 LLM이 회의록 본문에 다시 타이핑하는 구조라, 길어지면 요약·생략됐다.
+- **수정:** `transcribe_server.py`가 변환 결과를 `/tmp/meeting-simplifier/transcript_*.txt`로 저장하고 JSON에 `transcript_file`을 반환. `save_meeting.py`는 `--transcript-file`을 받아 본문 끝에 "전체 트랜스크립트"를 **코드로** 붙인다(LLM 비경유 → 무손실). 커맨드(stop/summarize)는 본문에서 트랜스크립트 섹션을 제거하고 `--transcript-file`을 전달.
+
 ### v1.4.15 — 설치/삭제/마이크 생명주기 안정화
 
 다차원 분석에서 발견된 설치·삭제·녹음 생명주기 문제를 수정.
