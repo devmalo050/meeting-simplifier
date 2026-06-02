@@ -34,3 +34,5 @@ cat "<file_path>"
 단, `save_meeting.py`의 인자는:
 - `--audio-path`: 오디오 파일이면 해당 파일 경로, 텍스트 파일이면 생략
 - `--transcript-file`: 오디오 파일이면 변환 결과의 `transcript_file`, 텍스트 파일이면 원본 파일 경로(`<file_path>`)
+
+또한 회의록 본문의 `**녹음 길이:**` 줄은 `summarize` 경로에서는 길이를 알 수 없으므로 생략합니다.
