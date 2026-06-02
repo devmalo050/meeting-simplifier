@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "DATA_DIR=~/.claude/plugins/data/meeting-simplifier-meeting-simplifier; mkdir -p \"$DATA_DIR\"; if [ ! -f \"$DATA_DIR/.setup-complete\" ]; then MS_SETUP_MARKER=\"$DATA_DIR/.setup-complete\" nohup bash \"${CLAUDE_PLUGIN_ROOT}/scripts/setup.sh\" >\"$DATA_DIR/setup.log\" 2>&1 & fi"
+            "command": "DATA_DIR=~/.claude/plugins/data/meeting-simplifier-meeting-simplifier; mkdir -p \"$DATA_DIR\"; bash \"${CLAUDE_PLUGIN_ROOT}/scripts/cleanup_old_versions.sh\" >>\"$DATA_DIR/cleanup.log\" 2>&1; if [ ! -f \"$DATA_DIR/.setup-complete\" ]; then MS_SETUP_MARKER=\"$DATA_DIR/.setup-complete\" nohup bash \"${CLAUDE_PLUGIN_ROOT}/scripts/setup.sh\" >\"$DATA_DIR/setup.log\" 2>&1 & fi"
           }
         ]
       }

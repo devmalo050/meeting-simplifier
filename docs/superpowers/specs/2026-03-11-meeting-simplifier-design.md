@@ -277,6 +277,18 @@ Skill의 `description` 필드에 다양한 트리거 패턴을 정의해 Claude�
 
 ## 변경 이력
 
+### v1.4.18 — 옛 버전 폴더 자동 정리 (SessionStart)
+
+호스트(Claude Code)가 버전 업데이트 시 옛 버전 폴더(`cache/.../<version>/`)를 자동 삭제하지 않음을
+실측으로 확인(v1.4.17의 venv 분리 가설은 반증됨 — venv 유무와 무관하게 호스트가 안 지움).
+
+- **추가:** `scripts/cleanup_old_versions.sh` — 현재 실행 버전만 남기고 형제 옛 버전 폴더를 정리. SessionStart 훅에서 동기 호출(`cleanup.log`에 기록).
+- **안전(자기 캐시를 rm -rf 하므로 적대적 검증 후 엄격 적용):**
+  - 삭제 후보를 **semver 디렉토리로 한정** → 비버전 사용자 데이터 원천 배제
+  - **물리 경로(`cd -P`/`pwd -P`) + inode 동일성(`-ef`)** → 심볼릭 링크 별칭 경유 시 현재 버전 자가삭제 방지
+  - **`$HOME/.claude/plugins/cache/*/meeting-simplifier` 접두사 앵커링** → 임의 위치의 `cache` 컴포넌트를 가진 비-Claude 경로 매칭 차단(로컬 클론/marketplaces 설치에서는 무동작)
+  - 멀티 에이전트 적대적 검증(5개 공격 벡터)으로 의도치 않은 삭제 시나리오 6건을 발견·수정 후 재검증 통과.
+
 ### v1.4.17 — venv를 버전 독립 위치로 이동 (버전 누적 방지)
 
 `setup.sh`가 `.venv`(~235MB)를 버전별 설치 폴더(`cache/.../<version>/.venv`)에 만들던 것이
