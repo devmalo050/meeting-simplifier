@@ -17,8 +17,9 @@ if [ ! -f "$AUDIO_PATH" ]; then
 fi
 
 VENV_PYTHON="$PLUGIN_ROOT/.venv/bin/python"
-if [ ! -f "$VENV_PYTHON" ]; then
-  echo '{"error": "환경이 설치되지 않았습니다. 잠시 후 다시 시도하세요."}'
+# venv 디렉토리만 있고 패키지가 안 깔린 반쪽 설치 상태를 import 가능 여부로 정확히 걸러낸다
+if [ ! -f "$VENV_PYTHON" ] || ! "$VENV_PYTHON" -c "import faster_whisper" 2>/dev/null; then
+  echo '{"error": "환경이 아직 준비되지 않았습니다. 의존성 설치가 끝난 뒤 다시 시도하세요."}'
   exit 1
 fi
 

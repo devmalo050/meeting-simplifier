@@ -1,6 +1,5 @@
 # scripts/transcribe_server.py
-# --oneshot PATH: 단발성 변환 후 JSON 출력하고 종료 (bash skill에서 직접 호출)
-# 인수 없음: stdin 루프 (하위 호환)
+# --oneshot PATH: 오디오를 변환해 JSON({"transcript","language"})을 stdout으로 출력하고 종료
 import sys
 import json
 import os
@@ -9,7 +8,9 @@ import tempfile
 from faster_whisper import WhisperModel
 
 CHUNK_SECS = 600
-OVERLAP_SECS = 30
+# 겹침 구간을 두면 split 후 단순 연결 시 경계 텍스트가 중복 전사되므로 0으로 둔다
+# (긴 녹음에서 청크 경계 단어 손실 가능성 < 중복으로 인한 회의록 오염)
+OVERLAP_SECS = 0
 
 def read_wav_duration(path):
     try:
@@ -131,7 +132,7 @@ def _transcribe(model, audio_path, language=None):
 def main():
     import argparse
     parser = argparse.ArgumentParser()
-    parser.add_argument('--oneshot', metavar='AUDIO_PATH', help='단발성 변환 후 JSON 출력하고 종료')
+    parser.add_argument('--oneshot', metavar='AUDIO_PATH', required=True, help='오디오 변환 후 JSON 출력하고 종료')
     args = parser.parse_args()
 
     whisper_model = os.environ.get("WHISPER_MODEL", "medium")
@@ -140,29 +141,11 @@ def main():
     model = WhisperModel(whisper_model, device="cpu", compute_type="int8", cpu_threads=cpu_threads)
     print("READY:ok", file=sys.stderr, flush=True)
 
-    if args.oneshot:
-        try:
-            result = transcribe(model, args.oneshot)
-            print(json.dumps(result, ensure_ascii=False), flush=True)
-        except Exception as e:
-            print(json.dumps({"error": str(e)}, ensure_ascii=False), flush=True)
-        return
-
-    for line in sys.stdin:
-        line = line.strip()
-        if not line:
-            continue
-        try:
-            req = json.loads(line)
-            audio_path = req.get("audio_path", "")
-            if not audio_path:
-                print(json.dumps({"error": "audio_path required"}), flush=True)
-                continue
-            language = req.get("language") or None  # "auto" 또는 None이면 자동 감지, "ko"/"en" 등이면 고정
-            result = transcribe(model, audio_path, language=language)
-            print(json.dumps(result, ensure_ascii=False), flush=True)
-        except Exception as e:
-            print(json.dumps({"error": str(e)}, ensure_ascii=False), flush=True)
+    try:
+        result = transcribe(model, args.oneshot)
+        print(json.dumps(result, ensure_ascii=False), flush=True)
+    except Exception as e:
+        print(json.dumps({"error": str(e)}, ensure_ascii=False), flush=True)
 
 if __name__ == "__main__":
     main()

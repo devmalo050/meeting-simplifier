@@ -9,7 +9,10 @@ description: >
 Bash 도구로 다음을 실행하세요:
 
 ```bash
-bash ~/.claude/plugins/marketplaces/meeting-simplifier/scripts/start_recording.sh
+PLUGIN_DIR=$(ls -d ~/.claude/plugins/cache/*/meeting-simplifier/*/ 2>/dev/null | sort -V | tail -1)
+[ -z "$PLUGIN_DIR" ] && PLUGIN_DIR=~/.claude/plugins/marketplaces/meeting-simplifier
+PLUGIN_DIR="${PLUGIN_DIR%/}"
+bash "$PLUGIN_DIR/scripts/start_recording.sh"
 ```
 
 결과 JSON을 파싱합니다:

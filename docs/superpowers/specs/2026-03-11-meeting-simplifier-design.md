@@ -272,3 +272,17 @@ Skill의 `description` 필드에 다양한 트리거 패턴을 정의해 Claude�
 
 - macOS (Apple Silicon / Intel)
 - Windows 10/11
+
+---
+
+## 변경 이력
+
+### v1.4.15 — 설치/삭제/마이크 생명주기 안정화
+
+다차원 분석에서 발견된 설치·삭제·녹음 생명주기 문제를 수정.
+
+- **경로 해석:** 커맨드/훅이 가정하던 `~/.claude/plugins/marketplaces/<name>/` 고정 경로는 실제 런타임 설치 위치(`~/.claude/plugins/cache/<marketplace>/<plugin>/<version>/`)와 어긋나 setup·커맨드가 동작하지 않았다. 훅은 `${CLAUDE_PLUGIN_ROOT}` 사용, 커맨드는 `cache/*` 우선·`marketplaces/` 폴백 런타임 탐색으로 교체.
+- **마이크 잔존:** `/start` 후 `/stop` 없이 세션이 끝나면 백그라운드 `rec`가 고아로 남아 마이크를 영구 점유했다. SessionEnd 정리 훅 신설 + `stop_recording.sh`에 SIGTERM→SIGKILL 에스컬레이션 및 고아 탐색 폴백 추가.
+- **설치 멱등성:** setup 실패가 `exit 0`으로 감춰지고 마커가 무조건 찍혀 실패가 영구 고착됐다. 핵심 의존성 실패를 비0 종료로 전파하고, 마커는 import 검증 통과 후에만 기록(`MS_SETUP_MARKER`). 무거운 설치는 `nohup` 비동기화. stale 락은 PID 검증으로 무시.
+- **삭제 정리:** 플러그인 영역 밖 잔여물(모델 캐시 ~1.9GB, `/tmp` 상태, `.venv`, 마커)을 정리하는 `scripts/uninstall.sh` 신설(회의록은 보존). README에 제거 안내 추가.
+- **문서/기능 정합성:** README의 미구현 settings 약속 제거(고정 동작 명시), 설치 핸들/문법 정정. 청크 겹침 중복 전사 제거(`OVERLAP_SECS=0`), 죽은 stdin 루프 제거, 오디오 이동 실패 고지.

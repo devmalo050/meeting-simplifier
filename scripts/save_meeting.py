@@ -55,12 +55,16 @@ def save_meeting(title, minutes, audio_path, fmt, output_dir):
         os.makedirs(fallback_dir, exist_ok=True)
         meeting_dir = fallback_dir
 
+    audio_moved = False
+    audio_error = None
     if audio_path:
         ext = os.path.splitext(audio_path)[1] or '.wav'
         dest_audio = os.path.join(meeting_dir, f"{safe_title}{ext}")
         try:
             shutil.move(audio_path, dest_audio)
+            audio_moved = True
         except Exception as e:
+            audio_error = str(e)
             sys.stderr.write(f"[save_meeting] 오디오 파일 이동 실패: {e}\n")
 
     minutes_path = os.path.join(meeting_dir, f"{safe_title}.{fmt}")
@@ -70,7 +74,13 @@ def save_meeting(title, minutes, audio_path, fmt, output_dir):
     elif fmt == 'docx':
         save_docx(minutes_path, title, minutes)
 
-    return {"saved_dir": meeting_dir}
+    result = {"saved_dir": meeting_dir}
+    if audio_path:
+        result["audio_moved"] = audio_moved
+        if not audio_moved:
+            result["audio_source"] = audio_path
+            result["audio_error"] = audio_error
+    return result
 
 
 def main():

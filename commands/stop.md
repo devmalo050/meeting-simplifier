@@ -10,7 +10,10 @@ description: >
 
 1. Bash 도구로 녹음을 중지합니다:
    ```bash
-   bash ~/.claude/plugins/marketplaces/meeting-simplifier/scripts/stop_recording.sh
+   PLUGIN_DIR=$(ls -d ~/.claude/plugins/cache/*/meeting-simplifier/*/ 2>/dev/null | sort -V | tail -1)
+   [ -z "$PLUGIN_DIR" ] && PLUGIN_DIR=~/.claude/plugins/marketplaces/meeting-simplifier
+   PLUGIN_DIR="${PLUGIN_DIR%/}"
+   bash "$PLUGIN_DIR/scripts/stop_recording.sh"
    ```
    - `"ok": false` → 에러 메시지를 사용자에게 전달하고 중단합니다.
    - `"ok": true` → "녹음 완료 — 녹음 시간: {duration_seconds}초"를 사용자에게 알립니다.
@@ -18,7 +21,10 @@ description: >
 
 2. 사용자에게 "텍스트 변환 중..."을 알린 뒤, Bash 도구로 텍스트 변환합니다:
    ```bash
-   bash ~/.claude/plugins/marketplaces/meeting-simplifier/scripts/transcribe.sh "<1단계 audio_path>"
+   PLUGIN_DIR=$(ls -d ~/.claude/plugins/cache/*/meeting-simplifier/*/ 2>/dev/null | sort -V | tail -1)
+   [ -z "$PLUGIN_DIR" ] && PLUGIN_DIR=~/.claude/plugins/marketplaces/meeting-simplifier
+   PLUGIN_DIR="${PLUGIN_DIR%/}"
+   bash "$PLUGIN_DIR/scripts/transcribe.sh" "<1단계 audio_path>"
    ```
    - `error` 키가 있으면 에러 메시지를 사용자에게 전달하고 중단합니다.
    - 완료 후 "변환 완료"를 사용자에게 알립니다.
@@ -56,7 +62,9 @@ description: >
 
 5. Bash 도구로 회의록을 저장합니다:
    ```bash
-   PLUGIN_DIR=~/.claude/plugins/marketplaces/meeting-simplifier
+   PLUGIN_DIR=$(ls -d ~/.claude/plugins/cache/*/meeting-simplifier/*/ 2>/dev/null | sort -V | tail -1)
+   [ -z "$PLUGIN_DIR" ] && PLUGIN_DIR=~/.claude/plugins/marketplaces/meeting-simplifier
+   PLUGIN_DIR="${PLUGIN_DIR%/}"
    MINUTES_FILE=$(mktemp /tmp/meeting-minutes-XXXX.md)
    cat > "$MINUTES_FILE" << 'MINUTES_EOF'
 {회의록 내용}
@@ -70,4 +78,5 @@ MINUTES_EOF
    - `error` 키가 있으면 에러 메시지를 사용자에게 전달합니다.
 
 6. 완료 후 사용자에게 알립니다:
-   "회의록이 저장되었습니다: {saved_dir}"
+   - "회의록이 저장되었습니다: {saved_dir}"
+   - 결과에 `"audio_moved": false`가 있으면, 녹음 파일이 원본 위치(`audio_source`)에 그대로 남아 있음을 함께 안내합니다.

@@ -13,7 +13,10 @@ description: >
 **오디오 파일 (`.wav`, `.mp3`, `.m4a`):**
 사용자에게 "텍스트 변환 중..."을 알린 뒤 Bash 도구로 변환합니다:
 ```bash
-bash ~/.claude/plugins/marketplaces/meeting-simplifier/scripts/transcribe.sh "<file_path>"
+PLUGIN_DIR=$(ls -d ~/.claude/plugins/cache/*/meeting-simplifier/*/ 2>/dev/null | sort -V | tail -1)
+[ -z "$PLUGIN_DIR" ] && PLUGIN_DIR=~/.claude/plugins/marketplaces/meeting-simplifier
+PLUGIN_DIR="${PLUGIN_DIR%/}"
+bash "$PLUGIN_DIR/scripts/transcribe.sh" "<file_path>"
 ```
 - `error` 키가 있으면 에러 메시지를 전달하고 중단합니다.
 - 완료 후 "변환 완료"를 알립니다.

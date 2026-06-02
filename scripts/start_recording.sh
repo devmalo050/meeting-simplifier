@@ -9,12 +9,17 @@ AUDIO_FILE="$PID_DIR/audio_path"
 
 mkdir -p "$PID_DIR"
 
-# 이미 녹음 중이면 에러
+# 이미 녹음 중이면 에러 (PID 재사용 오탐 방지를 위해 comm이 rec/sox인지 검증)
 if [ -f "$PID_FILE" ]; then
   OLD_PID=$(cat "$PID_FILE" 2>/dev/null)
   if [ -n "$OLD_PID" ] && kill -0 "$OLD_PID" 2>/dev/null; then
-    echo '{"ok": false, "error": "이미 녹음 중입니다."}'
-    exit 0
+    OLD_COMM=$(ps -o comm= -p "$OLD_PID" 2>/dev/null)
+    case "$OLD_COMM" in
+      *rec|*sox)
+        echo '{"ok": false, "error": "이미 녹음 중입니다."}'
+        exit 0
+        ;;
+    esac
   fi
   rm -f "$PID_FILE" "$AUDIO_FILE"
 fi
@@ -51,11 +56,14 @@ WARMUP_DONE="$PID_DIR/warmup.done"
 
 if [ -f "$VENV_PYTHON" ] && [ ! -f "$WARMUP_DONE" ]; then
   (
-    # 무음 1초 wav 생성 (sox)
+    # 무음 1초 wav 생성 (녹음과 동일한 48kHz)
     DUMMY_WAV=$(mktemp /tmp/warmup-XXXX.wav)
-    sox -n -r 16000 -c 1 -b 16 "$DUMMY_WAV" trim 0.0 1.0 2>/dev/null
+    sox -n -r 48000 -c 1 -b 16 "$DUMMY_WAV" trim 0.0 1.0 2>/dev/null
     if [ -f "$DUMMY_WAV" ]; then
-      WHISPER_MODEL="$WHISPER_MODEL" "$VENV_PYTHON" \
+      # transcribe_server가 행에 걸려도 고아로 남지 않도록 timeout이 있으면 감싼다
+      RUNNER="$VENV_PYTHON"
+      command -v timeout &>/dev/null && RUNNER="timeout 120 $VENV_PYTHON"
+      WHISPER_MODEL="$WHISPER_MODEL" $RUNNER \
         "$PLUGIN_ROOT/scripts/transcribe_server.py" \
         --oneshot "$DUMMY_WAV" >/dev/null 2>&1
       rm -f "$DUMMY_WAV"
