@@ -11,29 +11,52 @@
 - 자연어 트리거 지원 ("녹음 시작해줘", "회의 끝났어" 등)
 - macOS 지원
 
-## 사전 요구사항
-
-| 의존성 | macOS |
-|--------|-------|
-| sox | `brew install sox` |
-| Python 3.9+ | 기본 설치 |
-| faster-whisper | 플러그인 로드 시 자동 설치 |
-
-> **참고:** 최초 실행 시 Whisper medium 모델(약 1.5GB)이 자동 다운로드됩니다.
-
 ## 설치
 
+한 번이면 끝납니다. 아래 셋 중 편한 방법 하나만 고르세요.
+
+### A. 터미널 한 줄 — 가장 빠름
+
 ```bash
-# 1) 마켓플레이스 등록
-/plugin marketplace add devmalo050/meeting-simplifier
-# 2) 플러그인 설치
-/plugin install meeting-simplifier@meeting-simplifier
+claude plugin marketplace add devmalo050/meeting-simplifier && claude plugin install meeting-simplifier@meeting-simplifier
 ```
 
-또는 로컬에서 직접 사용:
-```bash
-git clone https://github.com/devmalo050/meeting-simplifier
+### B. Claude 채팅에 붙여넣기
+
+Claude Code 채팅창에 아래를 그대로 붙여넣으세요:
+
 ```
+devmalo050/meeting-simplifier 저장소를 플러그인 마켓플레이스로 추가하고
+meeting-simplifier 플러그인을 설치해줘.
+```
+
+설치 중 권한 요청이 뜨면 허용하면 됩니다.
+
+### C. `/plugin` 메뉴에서 클릭
+
+1. 채팅에 `/plugin` 입력
+2. **Add marketplace** → `devmalo050/meeting-simplifier`
+3. 목록에서 `meeting-simplifier` → **Install**
+
+> 로컬에서 직접 쓰려면: `git clone https://github.com/devmalo050/meeting-simplifier`
+
+### 설치 전 준비물
+
+| 필요한 것 | 비고 |
+|---|---|
+| Claude Code (CLI 또는 데스크톱) | 위 명령을 실행할 환경 |
+| macOS | 현재 macOS만 지원 |
+| Homebrew | `sox`(녹음) 자동 설치에 사용 — [brew.sh](https://brew.sh) |
+| Python 3.9+ | 보통 macOS에 기본 내장 |
+
+`sox`·`faster-whisper`·Whisper 모델(약 1.5GB)은 **설치 후 첫 세션에서 플러그인이 자동으로 내려받습니다.** 직접 설치할 필요 없습니다.
+
+### 설치 후 첫 사용
+
+새 Claude Code 세션에서 채팅에 한마디면 됩니다:
+
+- **"회의 녹음 시작해줘"** → 회의가 끝나면 **"회의 끝났어"**
+- 생성된 회의록은 `~/Documents/meetings/`에 자동 저장됩니다.
 
 ## 사용법
 
