@@ -2,7 +2,7 @@
 
 **작성일:** 2026-06-09
 **브랜치:** `feat/windows-support`
-**대상:** `scripts/*`, `hooks/hooks.json`, `commands/*.md`, `README.md`, 신규 `scripts/record.py`·`.ps1`·`.gitattributes`
+**대상:** `scripts/*`, `hooks/hooks.json`, `commands/*.md`, `README.md`, 신규 `scripts/record.py`·`.gitattributes`
 
 ## 목표
 
@@ -18,7 +18,7 @@
 
 **중요 제약(공식 문서 확인):**
 - 플러그인은 Claude Desktop 앱의 **Code 탭 + Local 세션**에서만 동작한다. **Chat 탭·Remote 세션에서는 비활성**(슬래시 커맨드가 안 보임).
-- **Windows Code 탭은 Git for Windows 설치를 필수로 요구**한다 → Git Bash가 사실상 보장된다. 단 v2.1.139+(2026-05)부터 PowerShell 도구가 Git 설치 환경에서도 옵션으로 점진 롤아웃(`CLAUDE_CODE_USE_POWERSHELL_TOOL`) 중이므로, "항상 Git Bash"를 단정하지 않고 두 셸 모두에서 동작하게 만든다.
+- **Windows Code 탭은 Git for Windows 설치를 필수로 요구**한다 → Git Bash가 보장된다. macOS CLI·데스크톱 앱도 `sh`/bash이므로 **세 타겟 환경 전부 bash가 보장**된다. 따라서 셸은 **bash 단일 경로**(macOS `sh` / Windows Git Bash)로 구현하고 OS 분기는 `uname -s`로 한다. (hooks command 훅은 `"shell"` 필드를 지원하지만 — 공식 문서 확인 — bash 단일이면 불필요하므로 명시하지 않는다.)
 
 ## 배경: 현재 코드의 플랫폼 의존성
 
@@ -48,7 +48,7 @@
 
 ## 아키텍처: "Python 코어 + 얇은 셸 어댑터"
 
-모든 실제 로직(녹음·프로세스 제어·변환·저장)을 OS 비의존 **Python**에 모은다. 셸 스크립트(`.sh`/`.ps1`)는 "venv python을 **절대경로**로 찾아 코어를 호출하는 최소 어댑터"로 축소한다. 결과적으로 POSIX 전용 의존(`/tmp`·`pgrep`·`kill -0`·`ps`·`seq`·glob)이 셸 레이어에서 사라져 Git Bash/PowerShell 어느 쪽이든 동작한다.
+모든 실제 로직(녹음·프로세스 제어·변환·저장)을 OS 비의존 **Python**에 모은다. 셸 스크립트(`.sh`)는 "venv python을 **절대경로**로 찾아 코어를 호출하는 최소 어댑터"로 축소한다. 결과적으로 POSIX 전용 의존(`/tmp`·`pgrep`·`kill -0`·`ps`·`seq`)이 사라지고, OS차는 셸의 `uname` 분기와 Python의 `is_windows()`로만 처리한다.
 
 ## 핵심 설계 결정
 
@@ -70,7 +70,7 @@
 - PID·audio_path·stop.flag·result·transcript를 `~/.claude/plugins/data/meeting-simplifier-meeting-simplifier/state/` 절대경로에 보관 → 셸·OS 무관 공유(Git Bash `/tmp`는 가상경로라 PowerShell 전환 시 불일치).
 
 ### 5. venv·Python·모델 캐시 크로스플랫폼화
-- venv python: **절대경로** + `bin/python`(POSIX) ↔ `Scripts\python.exe`(Windows) 분기(`setup.sh:65`, `transcribe.sh:19`, 신규 `.ps1`).
+- venv python: **절대경로** + `bin/python`(POSIX) ↔ `Scripts\python.exe`(Windows) 분기(`setup.sh`, `transcribe.sh`, 어댑터·훅·커맨드 전반 `uname` 분기).
 - Python 탐색: Windows는 `py`→`python`, POSIX는 현행 `python3`→`python`.
 - **HF_HOME을 data 디렉토리 아래로 고정** → git-bash `$HOME`↔Python `USERPROFILE` 불일치로 인한 재다운로드 차단. setup·transcribe 양쪽에서 동일 export.
 
@@ -78,22 +78,21 @@
 - 워커 시작 시 입력 디바이스 **probe** → PortAudio 에러(`-9999` 등)를 잡아 "Windows 설정 > 개인정보 보호 및 보안 > 마이크 > '데스크톱 앱이 마이크에 액세스하도록 허용'을 켜세요" 한국어 안내로 변환. 워커는 detach돼 stdout이 끊겼으므로 **result 파일에 기록**, stop/start가 읽어 사용자에게 전달.
 
 ### 7. 커맨드 경로 해석: POSIX glob 제거
-- `${CLAUDE_PLUGIN_ROOT}`는 커맨드 `.md`에서 미주입(기존 선례)이나 **hooks에서는 동작**한다. SessionStart 훅이 플러그인 루트를 data 파일(예: `state/plugin_root`)에 기록 → 커맨드는 그 파일을 읽어 Python을 절대경로로 호출. `ls -d … glob`·`sort -V`·`tail` 제거. 커맨드는 bash·PowerShell 양쪽 코드블록 제공.
+- `${CLAUDE_PLUGIN_ROOT}`는 커맨드 `.md`에서 미주입(기존 선례)이나 **hooks에서는 동작**한다. SessionStart 훅이 플러그인 루트를 data 파일(`state/plugin_root`)에 기록 → 커맨드는 그 파일을 읽어 Python을 절대경로로 호출하되, **plugin_root 부재 시 기존 cache-glob 폴백을 유지**한다(SessionStart 훅은 새 세션에서만 발동하므로 설치 직후 같은 세션 사용 대비).
 
 ### 8. 셸 런처 + 훅
-- `setup.sh`(POSIX/Git Bash) + 신규 `setup.ps1`(PowerShell): Python 탐색→venv→`pip install faster-whisper sounddevice psutil python-docx`→모델 다운로드. macOS `brew install sox` 제거. Windows는 `winget`/python.org 안내(Microsoft Store Python 배제 — venv/pip 깨짐).
-- 신규 `start_recording.ps1`·`stop_recording.ps1`·`transcribe.ps1`(얇은 어댑터).
-- `hooks.json`: SessionStart/SessionEnd를 `"shell":"bash"`/`"powershell"` 엔트리로 분리.
+- `setup.sh`(macOS `sh` / Windows Git Bash): Python 탐색(`py`→`python`/`python3`)→venv→`pip install faster-whisper sounddevice psutil`(+best-effort `python-docx`)→모델 다운로드. macOS `brew install sox` 제거. Windows는 `winget`/python.org 안내(Microsoft Store Python 배제 — venv/pip 깨짐).
+- `start_recording.sh`·`stop_recording.sh`·`transcribe.sh`: venv 경로를 `uname` 분기하는 얇은 어댑터.
+- `hooks.json`: SessionStart(plugin_root 기록+cleanup+setup detach)·SessionEnd(record.py stop) 단일 command 엔트리, `</dev/null`로 완전 detach.
 
 ### 9. 위생
 - 신규 `.gitattributes`: `*.sh text eol=lf`(CRLF 셰뱅 깨짐 방지), 셰뱅 `#!/usr/bin/env bash` 통일.
-- `uninstall.sh` Windows 경로 보강 + 신규 `uninstall.ps1`.
+- `uninstall.sh` Windows(HF_HOME) 경로 보강.
 
 ## 파일별 변경 계획
 
 **신규**
 - `scripts/record.py` — sounddevice 녹음 코어(start/stop/worker), 안전 detach, 마이크 probe, stop 플래그.
-- `scripts/setup.ps1`, `scripts/start_recording.ps1`, `scripts/stop_recording.ps1`, `scripts/transcribe.ps1`, `scripts/uninstall.ps1` — PowerShell 어댑터.
 - `.gitattributes`.
 
 **수정**
@@ -104,19 +103,19 @@
 - `scripts/save_meeting.py` — 경로 점검(이미 pathlib, 거의 무변경).
 - `scripts/cleanup_old_versions.sh`·`uninstall.sh` — Windows 경로 보강.
 - `hooks/hooks.json` — shell 분기, `</dev/null` 추가, `/tmp`·POSIX 의존 제거, plugin_root 기록.
-- `commands/start.md`·`stop.md`·`summarize.md` — glob 제거, bash/PowerShell 양쪽, Python 절대경로 호출.
+- `commands/start.md`·`stop.md`·`summarize.md` — glob→plugin_root(+cache-glob 폴백), venv 경로 `uname` 분기.
 - `README.md` — 3환경 지원 명시, "Code 탭 + Local 세션", 마이크 권한 안내, Windows 설치(winget).
 
 ## 검증 체크리스트 (실기 — 사용자 Windows PC)
 
 1. Code 탭 + Local 세션에서 `/meeting-simplifier:start|stop|summarize` 인식·실행. Remote 세션에서는 비활성 확인.
-2. Bash 도구가 Git Bash인지 PowerShell인지 판별(`uname -a` vs `$PSVersionTable`). `CLAUDE_CODE_USE_POWERSHELL_TOOL` 기본값 실측.
+2. Bash 도구가 Git Bash로 동작하는지 확인(`uname -a`가 MINGW* 반환). Code 탭은 Git for Windows 필수이므로 Git Bash 기대.
 3. detach 불완전 시 세션 hang 재현 → 완전 detach 적용 후 hang 소멸 확인(#43123).
 4. 120s 초과 명령이 부모 세션을 죽이지 않는지, 런처가 즉시 리턴하는지(#45717).
 5. 마이크 토글 3종(기기/앱/데스크톱 앱) ON·OFF 조합별 녹음 성공·실패와 PortAudio 에러 메시지·한국어 안내 확인.
 6. 앱/세션 종료 후 워커 생존(reparenting) vs 강제 종료(Job Object), stop 플래그 정상 종료.
 7. PATH/venv 미상속 대비 — `.venv/Scripts/python.exe` 절대경로 실행, 필요 시 settings.json env로 PATH 명시.
-8. 커맨드 plugin_root 해석이 Git Bash·PowerShell 양쪽에서 정확한지.
+8. 커맨드 plugin_root 해석(+cache-glob 폴백)이 Git Bash에서 정확한지.
 9. SessionStart(setup)·SessionEnd(정리) 훅이 Windows Code 탭에서 정상 타이밍 실행, SessionEnd 조기 kill 없는지.
 10. **macOS 회귀 검증**(CLI + 데스크톱 앱): 녹음 엔진 교체분 정상 동작.
 
