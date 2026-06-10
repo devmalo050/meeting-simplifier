@@ -41,6 +41,7 @@ def state_paths():
         "result": s / "result.json",
         "log": s / "worker.log",
         "plugin_root": s / "plugin_root",
+        "ready": s / "ready.flag",
     }
 
 
@@ -52,6 +53,12 @@ def venv_python(dd=None):
 
 
 def friendly_device_error(exc):
+    if isinstance(exc, ModuleNotFoundError):
+        return (
+            f"녹음에 필요한 패키지가 아직 설치되지 않았습니다(missing: {exc.name}). "
+            "플러그인 첫 설치/업데이트 직후라면 잠시 뒤 자동 설치가 끝납니다. "
+            f"계속 실패하면 새 세션을 시작해 setup이 완료되게 하세요. (원본 오류: {exc})"
+        )
     return (
         "마이크를 열 수 없습니다. Windows라면 [설정 > 개인정보 보호 및 보안 > 마이크]에서 "
         "'마이크 액세스', '앱이 마이크에 액세스하도록 허용', '데스크톱 앱이 마이크에 액세스하도록 허용'을 "
@@ -91,8 +98,12 @@ def pid_alive(pid):
 
 
 def run_worker(audio_path):
-    import sounddevice as sd
     paths = state_paths()
+    try:
+        import sounddevice as sd
+    except Exception as e:
+        report_error(friendly_device_error(e))
+        return 1
     try:
         sd.check_input_settings(samplerate=SAMPLE_RATE, channels=CHANNELS, dtype="int16")
     except Exception as e:
@@ -109,6 +120,7 @@ def run_worker(audio_path):
             wav.writeframes(indata.tobytes())
 
         with sd.InputStream(samplerate=SAMPLE_RATE, channels=CHANNELS, dtype="int16", callback=callback):
+            paths["ready"].write_text("1")
             while not stop_flag.exists():
                 time.sleep(STOP_POLL_SECS)
     except Exception as e:
@@ -147,7 +159,7 @@ def cmd_start(argv):
     paths = state_paths()
     if is_recording():
         return {"ok": False, "error": "이미 녹음 중입니다."}
-    for key in ("stop", "result"):
+    for key in ("stop", "result", "ready"):
         paths[key].unlink(missing_ok=True)
     audio_path = str(state_dir() / f"recording_{time.strftime('%Y%m%d_%H%M%S')}.wav")
     pid = spawn_worker(audio_path)
@@ -163,9 +175,24 @@ def cmd_start(argv):
                     paths[key].unlink(missing_ok=True)
                 return data
             break
+        if paths["ready"].exists():
+            break
         if not pid_alive(pid):
             break
         time.sleep(STOP_POLL_SECS)
+
+    # 워커가 ready도 result도 못 남기고 죽었으면 침묵 실패 — 거짓 성공 대신 명시적 에러
+    if not paths["ready"].exists() and not pid_alive(pid) and not paths["result"].exists():
+        for key in ("pid", "audio"):
+            paths[key].unlink(missing_ok=True)
+        tail = ""
+        try:
+            lines = paths["log"].read_text(encoding="utf-8", errors="replace").strip().splitlines()
+            if lines:
+                tail = " (로그: " + lines[-1][:200] + ")"
+        except Exception:
+            pass
+        return {"ok": False, "error": "녹음 워커가 시작 직후 종료되었습니다. 환경 설치가 끝났는지 확인 후 다시 시도하세요." + tail}
     return {"ok": True, "audio_path": audio_path}
 
 
@@ -202,8 +229,12 @@ def cmd_stop(argv):
             time.sleep(STOP_POLL_SECS)
         if pid_alive(pid):
             force_kill(pid)
+    else:
+        # pid 손상으로 종료 대상을 모르면, stop.flag를 즉시 지우지 말고
+        # 워커가 플래그를 보고 자발 종료할 시간을 준다(고아 방지)
+        time.sleep(min(STOP_WAIT_SECS, 1.0))
 
-    for key in ("pid", "audio", "stop"):
+    for key in ("pid", "audio", "stop", "ready"):
         paths[key].unlink(missing_ok=True)
 
     if paths["result"].exists():

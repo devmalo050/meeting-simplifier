@@ -19,7 +19,7 @@ def test_state_dir_is_created(record_mod, data_dir):
 
 def test_state_paths_keys(record_mod):
     p = record_mod.state_paths()
-    assert set(p) == {"pid", "audio", "stop", "result", "log", "plugin_root"}
+    assert set(p) == {"pid", "audio", "stop", "result", "log", "plugin_root", "ready"}
     assert p["stop"].name == "stop.flag"
 
 
@@ -193,3 +193,65 @@ def test_stop_surfaces_worker_error(record_mod, tmp_path, monkeypatch):
     out = record_mod.cmd_stop([])
     assert out["ok"] is False
     assert "마이크" in out["error"]
+
+
+def test_worker_writes_ready_marker(record_mod, tmp_path, monkeypatch):
+    _install_fake_sounddevice(monkeypatch)
+    audio = tmp_path / "out.wav"
+    paths = record_mod.state_paths()
+
+    def trip_stop():
+        time.sleep(0.5)
+        paths["stop"].touch()
+
+    threading.Thread(target=trip_stop, daemon=True).start()
+    record_mod.run_worker(str(audio))
+    assert paths["ready"].exists()
+
+
+def test_worker_reports_error_on_missing_module(record_mod, tmp_path, monkeypatch):
+    import json
+    monkeypatch.setitem(sys.modules, "sounddevice", None)  # import 시 ImportError 유발
+    rc = record_mod.run_worker(str(tmp_path / "out.wav"))
+    assert rc == 1
+    data = json.loads(record_mod.state_paths()["result"].read_text(encoding="utf-8"))
+    assert data["ok"] is False
+
+
+def test_start_fails_when_worker_dies_silently(record_mod, monkeypatch):
+    def fake_spawn(audio_path):
+        return 4242  # result/ready 미기록 + 죽은 pid (import 크래시 등 침묵 실패 모사)
+
+    monkeypatch.setattr(record_mod, "spawn_worker", fake_spawn)
+    monkeypatch.setattr(record_mod, "pid_alive", lambda pid: False)
+    monkeypatch.setattr(record_mod, "START_PROBE_SECS", 0.3)
+    out = record_mod.cmd_start([])
+    assert out["ok"] is False
+    paths = record_mod.state_paths()
+    assert not paths["pid"].exists()
+
+
+def test_start_succeeds_promptly_when_ready(record_mod, monkeypatch):
+    def fake_spawn(audio_path):
+        record_mod.state_paths()["ready"].write_text("1")
+        return 4242
+
+    monkeypatch.setattr(record_mod, "spawn_worker", fake_spawn)
+    monkeypatch.setattr(record_mod, "pid_alive", lambda pid: True)
+    t0 = time.time()
+    out = record_mod.cmd_start([])
+    assert out["ok"] is True
+    assert time.time() - t0 < 1.0  # ready 마커로 START_PROBE_SECS(2초) 대기 없이 즉시 반환
+
+
+def test_stop_handles_corrupt_pid(record_mod, tmp_path, monkeypatch):
+    paths = record_mod.state_paths()
+    audio = tmp_path / "rec.wav"
+    _make_wav(audio, 1.0)
+    paths["pid"].write_text("not-a-number")
+    paths["audio"].write_text(str(audio))
+    monkeypatch.setattr(record_mod, "STOP_WAIT_SECS", 0.2)
+    out = record_mod.cmd_stop([])
+    assert out["ok"] is True
+    assert not paths["pid"].exists()
+    assert paths["stop"].exists() is False
