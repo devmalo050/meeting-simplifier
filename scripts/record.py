@@ -167,3 +167,73 @@ def cmd_start(argv):
             break
         time.sleep(STOP_POLL_SECS)
     return {"ok": True, "audio_path": audio_path}
+
+
+def force_kill(pid):
+    try:
+        import psutil
+        p = psutil.Process(pid)
+        p.terminate()
+        try:
+            p.wait(timeout=2)
+        except psutil.TimeoutExpired:
+            p.kill()
+    except Exception:
+        try:
+            os.kill(pid, 9)
+        except OSError:
+            pass
+
+
+def cmd_stop(argv):
+    paths = state_paths()
+    if not paths["pid"].exists():
+        return {"ok": False, "error": "녹음 중이 아닙니다."}
+    try:
+        pid = int(paths["pid"].read_text().strip())
+    except ValueError:
+        pid = None
+    audio_path = paths["audio"].read_text().strip() if paths["audio"].exists() else ""
+
+    paths["stop"].touch()
+    if pid is not None:
+        deadline = time.time() + STOP_WAIT_SECS
+        while time.time() < deadline and pid_alive(pid):
+            time.sleep(STOP_POLL_SECS)
+        if pid_alive(pid):
+            force_kill(pid)
+
+    for key in ("pid", "audio", "stop"):
+        paths[key].unlink(missing_ok=True)
+
+    if paths["result"].exists():
+        data = json.loads(paths["result"].read_text(encoding="utf-8"))
+        paths["result"].unlink(missing_ok=True)
+        if data.get("ok") is False:
+            return data
+
+    if not audio_path or not os.path.exists(audio_path):
+        return {"ok": False, "error": "녹음 파일이 생성되지 않았습니다."}
+    return {"ok": True, "audio_path": audio_path, "duration_seconds": wav_duration(audio_path)}
+
+
+def main(argv=None):
+    argv = list(sys.argv[1:] if argv is None else argv)
+    if not argv:
+        print(json.dumps({"ok": False, "error": "command required"}, ensure_ascii=False))
+        return 2
+    cmd, rest = argv[0], argv[1:]
+    if cmd == "_worker":
+        return run_worker(rest[0])
+    if cmd == "start":
+        print(json.dumps(cmd_start(rest), ensure_ascii=False))
+        return 0
+    if cmd == "stop":
+        print(json.dumps(cmd_stop(rest), ensure_ascii=False))
+        return 0
+    print(json.dumps({"ok": False, "error": f"unknown command: {cmd}"}, ensure_ascii=False))
+    return 2
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

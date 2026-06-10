@@ -162,3 +162,34 @@ def test_start_surfaces_worker_device_error(record_mod, monkeypatch):
     out = record_mod.cmd_start([])
     assert out["ok"] is False
     assert "마이크" in out["error"]
+
+
+def test_stop_not_recording(record_mod):
+    out = record_mod.cmd_stop([])
+    assert out["ok"] is False
+    assert "녹음 중이 아닙니다" in out["error"]
+
+
+def test_stop_creates_flag_and_reports_duration(record_mod, tmp_path, monkeypatch):
+    paths = record_mod.state_paths()
+    audio = tmp_path / "rec.wav"
+    _make_wav(audio, 2.0)
+    paths["pid"].write_text("4242")
+    paths["audio"].write_text(str(audio))
+    monkeypatch.setattr(record_mod, "pid_alive", lambda pid: False)
+    out = record_mod.cmd_stop([])
+    assert out["ok"] is True
+    assert abs(out["duration_seconds"] - 2.0) < 0.1
+    assert not paths["pid"].exists()
+    assert paths["stop"].exists() is False  # stop이 정리함
+
+
+def test_stop_surfaces_worker_error(record_mod, tmp_path, monkeypatch):
+    paths = record_mod.state_paths()
+    paths["pid"].write_text("4242")
+    paths["audio"].write_text(str(tmp_path / "rec.wav"))
+    record_mod.report_error("마이크를 열 수 없습니다. ...")
+    monkeypatch.setattr(record_mod, "pid_alive", lambda pid: False)
+    out = record_mod.cmd_stop([])
+    assert out["ok"] is False
+    assert "마이크" in out["error"]
