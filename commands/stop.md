@@ -10,7 +10,9 @@ description: >
 
 1. Bash 도구로 녹음을 중지합니다:
    ```bash
-   PLUGIN_DIR=$(ls -d ~/.claude/plugins/cache/*/meeting-simplifier/*/ 2>/dev/null | sort -V | tail -1)
+   DATA_DIR="${MS_DATA_DIR:-$HOME/.claude/plugins/data/meeting-simplifier-meeting-simplifier}"
+   PLUGIN_DIR="$(cat "$DATA_DIR/state/plugin_root" 2>/dev/null)"
+   [ -z "$PLUGIN_DIR" ] && PLUGIN_DIR="$(ls -d ~/.claude/plugins/cache/*/meeting-simplifier/*/ 2>/dev/null | sort -V | tail -1)"
    [ -z "$PLUGIN_DIR" ] && PLUGIN_DIR=~/.claude/plugins/marketplaces/meeting-simplifier
    PLUGIN_DIR="${PLUGIN_DIR%/}"
    bash "$PLUGIN_DIR/scripts/stop_recording.sh"
@@ -21,7 +23,9 @@ description: >
 
 2. 사용자에게 "텍스트 변환 중..."을 알린 뒤, Bash 도구로 텍스트 변환합니다:
    ```bash
-   PLUGIN_DIR=$(ls -d ~/.claude/plugins/cache/*/meeting-simplifier/*/ 2>/dev/null | sort -V | tail -1)
+   DATA_DIR="${MS_DATA_DIR:-$HOME/.claude/plugins/data/meeting-simplifier-meeting-simplifier}"
+   PLUGIN_DIR="$(cat "$DATA_DIR/state/plugin_root" 2>/dev/null)"
+   [ -z "$PLUGIN_DIR" ] && PLUGIN_DIR="$(ls -d ~/.claude/plugins/cache/*/meeting-simplifier/*/ 2>/dev/null | sort -V | tail -1)"
    [ -z "$PLUGIN_DIR" ] && PLUGIN_DIR=~/.claude/plugins/marketplaces/meeting-simplifier
    PLUGIN_DIR="${PLUGIN_DIR%/}"
    bash "$PLUGIN_DIR/scripts/transcribe.sh" "<1단계 audio_path>"
@@ -79,19 +83,19 @@ description: >
 
 5. Bash 도구로 회의록을 저장합니다:
    ```bash
-   PLUGIN_DIR=$(ls -d ~/.claude/plugins/cache/*/meeting-simplifier/*/ 2>/dev/null | sort -V | tail -1)
+   DATA_DIR="${MS_DATA_DIR:-$HOME/.claude/plugins/data/meeting-simplifier-meeting-simplifier}"
+   PLUGIN_DIR="$(cat "$DATA_DIR/state/plugin_root" 2>/dev/null)"
+   [ -z "$PLUGIN_DIR" ] && PLUGIN_DIR="$(ls -d ~/.claude/plugins/cache/*/meeting-simplifier/*/ 2>/dev/null | sort -V | tail -1)"
    [ -z "$PLUGIN_DIR" ] && PLUGIN_DIR=~/.claude/plugins/marketplaces/meeting-simplifier
    PLUGIN_DIR="${PLUGIN_DIR%/}"
-   VENV_PY="$HOME/.claude/plugins/data/meeting-simplifier-meeting-simplifier/.venv/bin/python"
-   MINUTES_FILE=$(mktemp /tmp/meeting-minutes-XXXX.md)
+   case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) VENV_PY="$DATA_DIR/.venv/Scripts/python.exe";; *) VENV_PY="$DATA_DIR/.venv/bin/python";; esac
+   MINUTES_FILE=$(mktemp 2>/dev/null || echo "$DATA_DIR/state/minutes.md")
    cat > "$MINUTES_FILE" << 'MINUTES_EOF'
 {회의록 내용}
 MINUTES_EOF
    "$VENV_PY" "$PLUGIN_DIR/scripts/save_meeting.py" \
-     --title "{회의 제목}" \
-     --minutes-file "$MINUTES_FILE" \
-     --audio-path "{1단계 audio_path}" \
-     --transcript-file "{2단계 transcript_file}"
+     --title "{회의 제목}" --minutes-file "$MINUTES_FILE" \
+     --audio-path "{1단계 audio_path}" --transcript-file "{2단계 transcript_file}"
    rm -f "$MINUTES_FILE"
    ```
    - `error` 키가 있으면 에러 메시지를 사용자에게 전달합니다.

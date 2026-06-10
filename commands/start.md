@@ -6,10 +6,12 @@ description: >
   "record meeting", "start recording", "start meeting"
 ---
 
-Bash 도구로 다음을 실행하세요:
+Bash 도구로 녹음을 시작하세요:
 
 ```bash
-PLUGIN_DIR=$(ls -d ~/.claude/plugins/cache/*/meeting-simplifier/*/ 2>/dev/null | sort -V | tail -1)
+DATA_DIR="${MS_DATA_DIR:-$HOME/.claude/plugins/data/meeting-simplifier-meeting-simplifier}"
+PLUGIN_DIR="$(cat "$DATA_DIR/state/plugin_root" 2>/dev/null)"
+[ -z "$PLUGIN_DIR" ] && PLUGIN_DIR="$(ls -d ~/.claude/plugins/cache/*/meeting-simplifier/*/ 2>/dev/null | sort -V | tail -1)"
 [ -z "$PLUGIN_DIR" ] && PLUGIN_DIR=~/.claude/plugins/marketplaces/meeting-simplifier
 PLUGIN_DIR="${PLUGIN_DIR%/}"
 bash "$PLUGIN_DIR/scripts/start_recording.sh"
@@ -17,4 +19,4 @@ bash "$PLUGIN_DIR/scripts/start_recording.sh"
 
 결과 JSON을 파싱합니다:
 - `"ok": true` → "녹음을 시작했습니다. 회의가 끝나면 '녹음 끝' 또는 '회의록 만들어줘' 라고 말씀해주세요."
-- `"ok": false` → `error` 값을 사용자에게 전달하세요.
+- `"ok": false` → `error` 값을 사용자에게 그대로 전달하세요. (마이크 권한 안내가 포함될 수 있습니다.)
