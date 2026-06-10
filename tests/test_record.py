@@ -26,3 +26,17 @@ def test_venv_python_posix(record_mod, data_dir, monkeypatch):
 def test_venv_python_windows(record_mod, data_dir, monkeypatch):
     monkeypatch.setattr(record_mod, "is_windows", lambda: True)
     assert record_mod.venv_python() == data_dir / ".venv" / "Scripts" / "python.exe"
+
+
+def test_friendly_device_error_has_korean_guidance(record_mod):
+    msg = record_mod.friendly_device_error(Exception("Unanticipated host error [PaErrorCode -9999]"))
+    assert "마이크" in msg
+    assert "설정" in msg
+    assert "-9999" in msg  # 원본 오류 보존
+
+
+def test_report_error_writes_result(record_mod):
+    import json
+    record_mod.report_error("권한 오류")
+    data = json.loads(record_mod.state_paths()["result"].read_text(encoding="utf-8"))
+    assert data == {"ok": False, "error": "권한 오류"}
