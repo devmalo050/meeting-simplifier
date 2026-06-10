@@ -2,6 +2,7 @@
 import json
 import os
 import time
+import wave
 from pathlib import Path
 
 SAMPLE_RATE = 48000
@@ -61,3 +62,27 @@ def report_error(message):
     state_paths()["result"].write_text(
         json.dumps({"ok": False, "error": message}, ensure_ascii=False), encoding="utf-8"
     )
+
+
+def wav_duration(path):
+    try:
+        with wave.open(path, "r") as f:
+            params = f.getparams()
+        file_size = os.path.getsize(path)
+        frame_size = params.nchannels * params.sampwidth
+        frames = max(0, (file_size - 44)) // frame_size
+        return round(frames / params.framerate, 1)
+    except Exception:
+        return 0
+
+
+def pid_alive(pid):
+    try:
+        import psutil
+        return psutil.pid_exists(pid)
+    except ImportError:
+        try:
+            os.kill(pid, 0)
+            return True
+        except OSError:
+            return False
