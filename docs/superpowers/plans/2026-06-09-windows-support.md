@@ -1374,3 +1374,17 @@ Expected: start/stop 정상 JSON, transcribe가 transcript JSON. 마이크 권�
 - **Placeholder scan:** 코드 스텝은 전부 실제 코드 포함. `{회의록 내용}`·`{회의 제목}`·`<file_path>`·`<1단계 audio_path>`·`{2단계 transcript_file}`는 Claude가 런타임에 치환하는 의도된 플레이스홀더(원본 커맨드 규약 유지).
 - **Type consistency:** `is_windows`/`data_dir`/`state_dir`/`state_paths`(키: pid/audio/stop/result/log/plugin_root)/`venv_python`/`friendly_device_error`/`report_error`/`wav_duration`/`pid_alive`/`run_worker`/`spawn_worker`/`is_recording`/`cmd_start`/`cmd_stop`/`force_kill`/`main` 시그니처가 정의/사용 태스크 전반에서 일치. 상수(SAMPLE_RATE/CHANNELS/SAMPLE_WIDTH/STOP_POLL_SECS/START_PROBE_SECS/STOP_WAIT_SECS)는 Task 2 정의분 재사용. `transcript_out_dir`(transcribe_server.py)는 T8에서 정의·사용.
 - **검증 반영:** adversarial 리뷰 발견 전부 반영 — os.name→is_windows(critical), plugin_root cache-glob 폴백 복원(high), SessionEnd·stop.md 5단계 venv OS 분기(high), START_PROBE_SECS 테스트 patch·setup.sh docx best-effort·Task6 mkdir·uninstall /tmp 정리(nice-to-have). "shell 필드 부재" 지적은 공식 문서 재확인 결과 오탐이었으나, bash 단일 경로 단순화로 무관해짐.
+
+---
+
+## 구현 현황 (2026-06-11)
+
+**Task 1–14: 구현·커밋 완료** (subagent-driven, Phase 1+2, 태스크별 스펙·품질 2단계 리뷰 통과). 플랜 이후 16개 커밋.
+
+**최종 전체 리뷰(설치/업그레이드·워커 견고성·e2e 3차원) 반영 — 재현된 결함 수정:**
+- `b39e8c5` 녹음 워커 견고성: `run_worker` import 보호(의존성 미설치도 result로 보고), `friendly_device_error`의 ModuleNotFoundError 구분, `ready.flag` 마커(start 2초 probe 대기 → ~0.2s 즉시 반환), `cmd_start` 거짓 ok:true 제거(워커 침묵 사망 시 명시적 실패 + worker.log), `cmd_stop` corrupt pid 시 stop.flag 유지 대기.
+- `0d668de` 업그레이드 안전성(critical): hooks.json SessionStart가 `.setup-complete` 마커뿐 아니라 핵심 의존성 import 실패도 setup 트리거 조건에 포함(구버전→1.5.0 업그레이드 시 sounddevice/psutil/numpy 미설치로 인한 무음 데이터 손실 차단). setup.sh numpy 명시 설치 + 마커/체크 일관성, 구 `~/.cache/huggingface` 모델 1회 이전(재다운로드 방지).
+
+**Task 15 (macOS 회귀): 검증 완료** — 단위 25 passed + 실제 녹음→중지→변환 e2e 동작(start 0.48s, WAV 48kHz/mono, 변환 정상). 의존성 미설치 친절 안내, 업그레이드 3시나리오(설치 트리거/스킵) 검증.
+
+**Task 16 (Windows 실기 검증): 사용자 대기** — 실제 Windows + Claude Desktop 앱 Code 탭에서 체크리스트 수행 필요.
