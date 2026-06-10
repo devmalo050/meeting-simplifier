@@ -1,4 +1,8 @@
 import os
+import sys
+import threading
+import time
+import types
 import wave
 from pathlib import Path
 
@@ -67,3 +71,55 @@ def test_pid_alive_for_current_process(record_mod):
 
 def test_pid_alive_for_dead_pid(record_mod):
     assert record_mod.pid_alive(2147483600) is False
+
+
+def _install_fake_sounddevice(monkeypatch, frames=b"\x00\x00" * 4800, fail=False):
+    fake = types.ModuleType("sounddevice")
+
+    def check_input_settings(**kwargs):
+        if fail:
+            raise RuntimeError("Unanticipated host error [PaErrorCode -9999]")
+
+    class InputStream:
+        def __init__(self, samplerate, channels, dtype, callback):
+            self._cb = callback
+
+        def __enter__(self):
+            class _Arr:
+                def tobytes(self_inner):
+                    return frames
+            self._cb(_Arr(), 4800, None, None)
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+    fake.check_input_settings = check_input_settings
+    fake.InputStream = InputStream
+    monkeypatch.setitem(sys.modules, "sounddevice", fake)
+
+
+def test_worker_writes_wav_until_stop(record_mod, tmp_path, monkeypatch):
+    _install_fake_sounddevice(monkeypatch)
+    audio = tmp_path / "out.wav"
+    paths = record_mod.state_paths()
+
+    def trip_stop():
+        time.sleep(0.5)
+        paths["stop"].touch()
+
+    threading.Thread(target=trip_stop, daemon=True).start()
+    rc = record_mod.run_worker(str(audio))
+    assert rc == 0
+    assert audio.exists()
+    assert record_mod.wav_duration(str(audio)) > 0
+
+
+def test_worker_reports_friendly_error_on_device_failure(record_mod, tmp_path, monkeypatch):
+    import json
+    _install_fake_sounddevice(monkeypatch, fail=True)
+    rc = record_mod.run_worker(str(tmp_path / "out.wav"))
+    assert rc == 1
+    data = json.loads(record_mod.state_paths()["result"].read_text(encoding="utf-8"))
+    assert data["ok"] is False
+    assert "마이크" in data["error"]

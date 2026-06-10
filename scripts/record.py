@@ -86,3 +86,32 @@ def pid_alive(pid):
             return True
         except OSError:
             return False
+
+
+def run_worker(audio_path):
+    import sounddevice as sd
+    paths = state_paths()
+    try:
+        sd.check_input_settings(samplerate=SAMPLE_RATE, channels=CHANNELS, dtype="int16")
+    except Exception as e:
+        report_error(friendly_device_error(e))
+        return 1
+
+    stop_flag = paths["stop"]
+    wav = wave.open(audio_path, "wb")
+    wav.setnchannels(CHANNELS)
+    wav.setsampwidth(SAMPLE_WIDTH)
+    wav.setframerate(SAMPLE_RATE)
+    try:
+        def callback(indata, frames, time_info, status):
+            wav.writeframes(indata.tobytes())
+
+        with sd.InputStream(samplerate=SAMPLE_RATE, channels=CHANNELS, dtype="int16", callback=callback):
+            while not stop_flag.exists():
+                time.sleep(STOP_POLL_SECS)
+    except Exception as e:
+        report_error(friendly_device_error(e))
+        return 1
+    finally:
+        wav.close()
+    return 0
