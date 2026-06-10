@@ -9,7 +9,7 @@
 - Claude로 회의록 자동 생성 (요약, 상세내용, 결정사항, 액션아이템, 트랜스크립트)
 - md / txt / docx 포맷 저장
 - 자연어 트리거 지원 ("녹음 시작해줘", "회의 끝났어" 등)
-- macOS 지원
+- macOS · Windows 지원 (Claude Desktop 앱 Code 탭 / CLI)
 
 ## 설치
 
@@ -44,12 +44,11 @@ meeting-simplifier 플러그인을 설치해줘.
 
 | 필요한 것 | 비고 |
 |---|---|
-| Claude Code (CLI 또는 데스크톱) | 위 명령을 실행할 환경 |
-| macOS | 현재 macOS만 지원 |
-| Homebrew | `sox`(녹음) 자동 설치에 사용 — [brew.sh](https://brew.sh) |
-| Python 3.9+ | 보통 macOS에 기본 내장 |
+| Claude Code (CLI 또는 데스크톱 앱) | Windows는 **데스크톱 앱의 Code 탭 + Local 세션**에서 동작 (Chat 탭·Remote 세션 불가) |
+| Windows: Git for Windows | 데스크톱 앱 Code 탭이 요구 — 설치 시 Git Bash 포함 |
+| Python 3.9+ | macOS 기본 내장 / Windows: `winget install -e --id Python.Python.3.12` (Microsoft Store 버전은 비권장) |
 
-`sox`·`faster-whisper`·Whisper 모델(약 1.5GB)은 **설치 후 첫 세션에서 플러그인이 자동으로 내려받습니다.** 직접 설치할 필요 없습니다.
+`sounddevice`·`faster-whisper`·Whisper 모델(약 1.5GB)은 설치 후 첫 세션에서 플러그인이 자동으로 내려받습니다. SoX 등 외부 녹음 도구는 더 이상 필요 없습니다.
 
 ### 설치 후 첫 사용
 
@@ -73,6 +72,12 @@ meeting-simplifier 플러그인을 설치해줘.
 - "회의 녹음 시작해줘" / "start recording"
 - "녹음 끝" / "회의 끝났어" / "end meeting"
 - "이 파일 회의록으로 정리해줘"
+
+## Windows에서 마이크가 안 잡힐 때
+
+Windows는 데스크톱 앱 전체에 마이크 권한을 한 번에 부여합니다. 녹음이 실패하면:
+**설정 > 개인정보 보호 및 보안 > 마이크** 에서
+`마이크 액세스`, `앱이 마이크에 액세스하도록 허용`, `데스크톱 앱이 마이크에 액세스하도록 허용` 세 가지를 모두 켜세요.
 
 ## 동작 기본값
 
