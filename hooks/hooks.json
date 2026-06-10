@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "DATA_DIR=~/.claude/plugins/data/meeting-simplifier-meeting-simplifier; mkdir -p \"$DATA_DIR\"; bash \"${CLAUDE_PLUGIN_ROOT}/scripts/cleanup_old_versions.sh\" >>\"$DATA_DIR/cleanup.log\" 2>&1; if [ ! -f \"$DATA_DIR/.setup-complete\" ]; then MS_SETUP_MARKER=\"$DATA_DIR/.setup-complete\" nohup bash \"${CLAUDE_PLUGIN_ROOT}/scripts/setup.sh\" >\"$DATA_DIR/setup.log\" 2>&1 & fi"
+            "command": "DATA_DIR=\"${MS_DATA_DIR:-$HOME/.claude/plugins/data/meeting-simplifier-meeting-simplifier}\"; mkdir -p \"$DATA_DIR/state\"; printf '%s' \"${CLAUDE_PLUGIN_ROOT}\" > \"$DATA_DIR/state/plugin_root\"; bash \"${CLAUDE_PLUGIN_ROOT}/scripts/cleanup_old_versions.sh\" >>\"$DATA_DIR/cleanup.log\" 2>&1; if [ ! -f \"$DATA_DIR/.setup-complete\" ]; then MS_SETUP_MARKER=\"$DATA_DIR/.setup-complete\" nohup bash \"${CLAUDE_PLUGIN_ROOT}/scripts/setup.sh\" </dev/null >\"$DATA_DIR/setup.log\" 2>&1 & fi"
           }
         ]
       }
@@ -15,7 +15,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "PID_DIR=/tmp/meeting-simplifier; if [ -f \"$PID_DIR/rec.pid\" ]; then P=$(cat \"$PID_DIR/rec.pid\" 2>/dev/null); if [ -n \"$P\" ]; then kill \"$P\" 2>/dev/null; for i in $(seq 1 10); do sleep 0.1; kill -0 \"$P\" 2>/dev/null || break; done; kill -0 \"$P\" 2>/dev/null && kill -9 \"$P\" 2>/dev/null; fi; rm -f \"$PID_DIR/rec.pid\" \"$PID_DIR/audio_path\"; fi"
+            "command": "DATA_DIR=\"${MS_DATA_DIR:-$HOME/.claude/plugins/data/meeting-simplifier-meeting-simplifier}\"; case \"$(uname -s)\" in MINGW*|MSYS*|CYGWIN*) VP=\"$DATA_DIR/.venv/Scripts/python.exe\";; *) VP=\"$DATA_DIR/.venv/bin/python\";; esac; if [ -f \"$VP\" ] && [ -f \"$DATA_DIR/state/rec.pid\" ]; then \"$VP\" \"${CLAUDE_PLUGIN_ROOT}/scripts/record.py\" stop </dev/null >/dev/null 2>&1 || true; fi"
           }
         ]
       }
