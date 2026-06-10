@@ -123,3 +123,42 @@ def test_worker_reports_friendly_error_on_device_failure(record_mod, tmp_path, m
     data = json.loads(record_mod.state_paths()["result"].read_text(encoding="utf-8"))
     assert data["ok"] is False
     assert "마이크" in data["error"]
+
+
+def test_start_writes_pid_and_audio(record_mod, monkeypatch):
+    spawned = {}
+
+    def fake_spawn(audio_path):
+        spawned["audio"] = audio_path
+        return 4242
+
+    monkeypatch.setattr(record_mod, "spawn_worker", fake_spawn)
+    monkeypatch.setattr(record_mod, "pid_alive", lambda pid: True)
+    monkeypatch.setattr(record_mod, "START_PROBE_SECS", 0.0)
+    out = record_mod.cmd_start([])
+    paths = record_mod.state_paths()
+    assert out["ok"] is True
+    assert paths["pid"].read_text().strip() == "4242"
+    assert paths["audio"].read_text().strip() == spawned["audio"]
+
+
+def test_start_refuses_when_already_recording(record_mod, monkeypatch):
+    paths = record_mod.state_paths()
+    paths["pid"].write_text("4242")
+    monkeypatch.setattr(record_mod, "pid_alive", lambda pid: True)
+    out = record_mod.cmd_start([])
+    assert out["ok"] is False
+    assert "이미 녹음" in out["error"]
+
+
+def test_start_surfaces_worker_device_error(record_mod, monkeypatch):
+    def fake_spawn(audio_path):
+        record_mod.report_error("마이크를 열 수 없습니다. ...")
+        return 4243
+
+    monkeypatch.setattr(record_mod, "spawn_worker", fake_spawn)
+    monkeypatch.setattr(record_mod, "pid_alive", lambda pid: False)
+    monkeypatch.setattr(record_mod, "START_PROBE_SECS", 0.5)
+    out = record_mod.cmd_start([])
+    assert out["ok"] is False
+    assert "마이크" in out["error"]

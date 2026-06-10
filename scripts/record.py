@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 import json
 import os
+import subprocess
+import sys
 import time
 import wave
 from pathlib import Path
@@ -115,3 +117,53 @@ def run_worker(audio_path):
     finally:
         wav.close()
     return 0
+
+
+def spawn_worker(audio_path):
+    paths = state_paths()
+    log = open(paths["log"], "ab")
+    kwargs = dict(stdin=subprocess.DEVNULL, stdout=log, stderr=log)
+    if is_windows():
+        kwargs["creationflags"] = subprocess.DETACHED_PROCESS | subprocess.CREATE_NO_WINDOW
+    else:
+        kwargs["start_new_session"] = True
+    proc = subprocess.Popen(
+        [sys.executable, os.path.abspath(__file__), "_worker", audio_path], **kwargs
+    )
+    return proc.pid
+
+
+def is_recording():
+    paths = state_paths()
+    if not paths["pid"].exists():
+        return False
+    try:
+        return pid_alive(int(paths["pid"].read_text().strip()))
+    except (ValueError, OSError):
+        return False
+
+
+def cmd_start(argv):
+    paths = state_paths()
+    if is_recording():
+        return {"ok": False, "error": "이미 녹음 중입니다."}
+    for key in ("stop", "result"):
+        paths[key].unlink(missing_ok=True)
+    audio_path = str(state_dir() / f"recording_{time.strftime('%Y%m%d_%H%M%S')}.wav")
+    pid = spawn_worker(audio_path)
+    paths["pid"].write_text(str(pid))
+    paths["audio"].write_text(audio_path)
+
+    deadline = time.time() + START_PROBE_SECS
+    while time.time() < deadline:
+        if paths["result"].exists():
+            data = json.loads(paths["result"].read_text(encoding="utf-8"))
+            if data.get("ok") is False:
+                for key in ("pid", "audio"):
+                    paths[key].unlink(missing_ok=True)
+                return data
+            break
+        if not pid_alive(pid):
+            break
+        time.sleep(STOP_POLL_SECS)
+    return {"ok": True, "audio_path": audio_path}
