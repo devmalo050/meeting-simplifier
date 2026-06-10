@@ -28,6 +28,7 @@ case "$CUR_VER" in
 esac
 
 # 안전장치 3: 정식 Claude 캐시 설치 루트 하위가 아니면(로컬 클론·marketplaces 등) 중단
+# Git Bash(Windows)에서도 동일 경로($HOME/.claude/plugins/cache/...)로 매칭되어 동작한다.
 case "$PARENT" in
   "$HOME"/.claude/plugins/cache/*/meeting-simplifier) : ;;
   *) exit 0 ;;

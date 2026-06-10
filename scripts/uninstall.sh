@@ -20,15 +20,9 @@ remove() {
 }
 
 # Whisper 모델 캐시 (가장 큰 잔여물, medium 약 1.4GB + small 약 0.5GB)
-for d in "$HOME"/.cache/huggingface/hub/models--Systran--faster-whisper-*; do
+DATA_DIR="${MS_DATA_DIR:-$HOME/.claude/plugins/data/meeting-simplifier-meeting-simplifier}"
+for d in "$DATA_DIR"/hf/hub/models--Systran--faster-whisper-* "$HOME"/.cache/huggingface/hub/models--Systran--faster-whisper-*; do
   [ -e "$d" ] && remove "$d" "Whisper 모델 캐시"
-done
-
-# 런타임 상태 / 락 / warmup 임시파일
-remove "/tmp/meeting-simplifier" "런타임 상태 디렉토리"
-remove "/tmp/meeting-simplifier-setup.lock" "setup 락"
-for w in /tmp/warmup-*.wav; do
-  [ -e "$w" ] && remove "$w" "warmup 임시 wav"
 done
 
 # 설치 완료 마커 + 로그 + 가상환경 (data 디렉토리에 통합 저장됨)
