@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # scripts/uninstall.sh — 플러그인이 자기 디렉토리 밖에 남긴 잔여물을 정리한다.
 # Claude Code의 플러그인 삭제는 cache 디렉토리만 지우므로, 모델 캐시(~1.9GB) 등은 수동 정리가 필요하다.
 # 회의록(~/Documents/meetings)은 사용자 데이터이므로 절대 삭제하지 않는다.

@@ -6,3 +6,5 @@ __pycache__/
 *.pyc
 node_modules/
 package-lock.json
+.pytest_cache/
+tests/__pycache__/

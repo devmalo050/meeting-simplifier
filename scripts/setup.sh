@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # scripts/setup.sh — sox, faster-whisper(venv), python-docx 자동 설치
 
 PLUGIN_ROOT="$(cd "$(dirname "$0")/.." && pwd)"

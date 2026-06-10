@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # scripts/stop_recording.sh — 녹음 중지
 # 출력: JSON {"ok": true, "audio_path": "...", "duration_seconds": N}  또는  {"ok": false, "error": "..."}
 

@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # scripts/start_recording.sh — 마이크 녹음 시작
 # 출력: JSON {"ok": true, "audio_path": "..."}  또는  {"ok": false, "error": "..."}
 

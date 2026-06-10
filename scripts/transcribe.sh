@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # scripts/transcribe.sh — 오디오 파일을 텍스트로 변환
 # 사용법: bash transcribe.sh <audio_path>
 # 출력: JSON {"transcript": "...", "language": "ko"}  또는  {"error": "..."}

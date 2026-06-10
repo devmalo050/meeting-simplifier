@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # scripts/cleanup_old_versions.sh
 # 호스트(Claude Code)는 버전 업데이트 시 옛 버전 폴더(cache/.../<version>/)를 자동 삭제하지 않는다.
 # 이 스크립트는 "현재 실행 중인 버전"만 남기고 같은 플러그인의 옛 버전 폴더를 정리한다.
