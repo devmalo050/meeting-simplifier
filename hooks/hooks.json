@@ -5,7 +5,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "DATA_DIR=\"${MS_DATA_DIR:-$HOME/.claude/plugins/data/meeting-simplifier-meeting-simplifier}\"; mkdir -p \"$DATA_DIR/state\"; printf '%s' \"${CLAUDE_PLUGIN_ROOT}\" > \"$DATA_DIR/state/plugin_root\"; bash \"${CLAUDE_PLUGIN_ROOT}/scripts/cleanup_old_versions.sh\" >>\"$DATA_DIR/cleanup.log\" 2>&1; if [ ! -f \"$DATA_DIR/.setup-complete\" ]; then MS_SETUP_MARKER=\"$DATA_DIR/.setup-complete\" nohup bash \"${CLAUDE_PLUGIN_ROOT}/scripts/setup.sh\" </dev/null >\"$DATA_DIR/setup.log\" 2>&1 & fi"
+            "command": "DATA_DIR=\"${MS_DATA_DIR:-$HOME/.claude/plugins/data/meeting-simplifier-meeting-simplifier}\"; mkdir -p \"$DATA_DIR/state\"; printf '%s' \"${CLAUDE_PLUGIN_ROOT}\" > \"$DATA_DIR/state/plugin_root\"; bash \"${CLAUDE_PLUGIN_ROOT}/scripts/cleanup_old_versions.sh\" >>\"$DATA_DIR/cleanup.log\" 2>&1; case \"$(uname -s)\" in MINGW*|MSYS*|CYGWIN*) VP=\"$DATA_DIR/.venv/Scripts/python.exe\";; *) VP=\"$DATA_DIR/.venv/bin/python\";; esac; NEED=0; [ -f \"$DATA_DIR/.setup-complete\" ] || NEED=1; if [ ! -f \"$VP\" ] || ! \"$VP\" -c 'import faster_whisper, sounddevice, psutil, numpy' 2>/dev/null; then NEED=1; fi; if [ \"$NEED\" = 1 ]; then MS_SETUP_MARKER=\"$DATA_DIR/.setup-complete\" nohup bash \"${CLAUDE_PLUGIN_ROOT}/scripts/setup.sh\" </dev/null >\"$DATA_DIR/setup.log\" 2>&1 & fi"
           }
         ]
       }

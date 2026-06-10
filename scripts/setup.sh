@@ -43,10 +43,10 @@ if [ ! -f "$VENV_PYTHON" ]; then
   "$PYTHON_CMD" -m venv "$VENV_DIR" || { echo "❌ venv 생성 실패"; exit 1; }
 fi
 
-if ! "$VENV_PYTHON" -c "import faster_whisper, sounddevice, psutil" 2>/dev/null; then
-  echo "📦 핵심 의존성을 설치합니다 (faster-whisper, sounddevice, psutil)..."
-  "$VENV_PYTHON" -m pip install --quiet faster-whisper sounddevice psutil \
-    || { echo "❌ 핵심 의존성 설치 실패. 수동: pip install faster-whisper sounddevice psutil"; exit 1; }
+if ! "$VENV_PYTHON" -c "import faster_whisper, sounddevice, psutil, numpy" 2>/dev/null; then
+  echo "📦 핵심 의존성을 설치합니다 (faster-whisper, sounddevice, psutil, numpy)..."
+  "$VENV_PYTHON" -m pip install --quiet faster-whisper sounddevice psutil numpy \
+    || { echo "❌ 핵심 의존성 설치 실패. 수동: pip install faster-whisper sounddevice psutil numpy"; exit 1; }
 fi
 
 if ! "$VENV_PYTHON" -c "import docx" 2>/dev/null; then
@@ -57,12 +57,22 @@ fi
 export HF_HOME="$DATA_DIR/hf"
 WHISPER_MODEL="${WHISPER_MODEL:-medium}"
 MODEL_CACHE="$HF_HOME/hub/models--Systran--faster-whisper-${WHISPER_MODEL}"
+
+# 구버전(~/.cache/huggingface)에 받아둔 모델이 있으면 신규 HF_HOME으로 1회 이전 — 업그레이드 시 재다운로드 방지
+OLD_HF_HUB="$HOME/.cache/huggingface/hub"
+if [ ! -d "$MODEL_CACHE" ] && [ -d "$OLD_HF_HUB" ]; then
+  mkdir -p "$HF_HOME/hub"
+  for m in "$OLD_HF_HUB"/models--Systran--faster-whisper-*; do
+    [ -d "$m" ] && mv "$m" "$HF_HOME/hub/" 2>/dev/null && echo "기존 모델을 이전했습니다: $(basename "$m")"
+  done
+fi
+
 if [ ! -d "$MODEL_CACHE" ]; then
   echo "📦 Whisper ${WHISPER_MODEL} 모델을 다운로드합니다 (최초 1회)..."
   HF_HOME="$HF_HOME" "$VENV_PYTHON" -c "from faster_whisper import WhisperModel; WhisperModel('${WHISPER_MODEL}', device='cpu', compute_type='int8')" 2>/dev/null \
     && echo "✅ 모델 준비 완료" || echo "⚠️  모델 다운로드 실패 (첫 변환 시 자동 시도)"
 fi
 
-if [ -n "$MS_SETUP_MARKER" ] && "$VENV_PYTHON" -c "import faster_whisper, sounddevice" 2>/dev/null; then
+if [ -n "$MS_SETUP_MARKER" ] && "$VENV_PYTHON" -c "import faster_whisper, sounddevice, psutil, numpy" 2>/dev/null; then
   touch "$MS_SETUP_MARKER"
 fi
