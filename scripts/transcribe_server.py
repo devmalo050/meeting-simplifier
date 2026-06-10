@@ -12,6 +12,14 @@ CHUNK_SECS = 600
 # (긴 녹음에서 청크 경계 단어 손실 가능성 < 중복으로 인한 회의록 오염)
 OVERLAP_SECS = 0
 
+def transcript_out_dir():
+    base = os.environ.get("MS_DATA_DIR") or os.path.join(
+        os.path.expanduser("~"), ".claude", "plugins", "data", "meeting-simplifier-meeting-simplifier"
+    )
+    out = os.path.join(base, "state")
+    os.makedirs(out, exist_ok=True)
+    return out
+
 def read_wav_duration(path):
     try:
         with wave.open(path, 'r') as f:
@@ -146,7 +154,7 @@ def main():
         # 트랜스크립트 전문을 파일로 저장한다. 회의록의 "전체 트랜스크립트"는 save_meeting.py가
         # 이 파일을 읽어 코드로 붙이므로, LLM이 긴 트랜스크립트를 다시 타이핑하다 잘리는 일이 없다.
         try:
-            out_dir = "/tmp/meeting-simplifier"
+            out_dir = transcript_out_dir()
             os.makedirs(out_dir, exist_ok=True)
             stem = os.path.splitext(os.path.basename(args.oneshot))[0]
             tfile = os.path.join(out_dir, f"transcript_{stem}.txt")
