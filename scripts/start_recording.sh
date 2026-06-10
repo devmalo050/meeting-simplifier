@@ -1,75 +1,12 @@
 #!/usr/bin/env bash
-# scripts/start_recording.sh — 마이크 녹음 시작
-# 출력: JSON {"ok": true, "audio_path": "..."}  또는  {"ok": false, "error": "..."}
-
+# scripts/start_recording.sh — record.py start 어댑터
 PLUGIN_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-PID_DIR="/tmp/meeting-simplifier"
-PID_FILE="$PID_DIR/rec.pid"
-AUDIO_FILE="$PID_DIR/audio_path"
-
-mkdir -p "$PID_DIR"
-
-# 이미 녹음 중이면 에러 (PID 재사용 오탐 방지를 위해 comm이 rec/sox인지 검증)
-if [ -f "$PID_FILE" ]; then
-  OLD_PID=$(cat "$PID_FILE" 2>/dev/null)
-  if [ -n "$OLD_PID" ] && kill -0 "$OLD_PID" 2>/dev/null; then
-    OLD_COMM=$(ps -o comm= -p "$OLD_PID" 2>/dev/null)
-    case "$OLD_COMM" in
-      *rec|*sox)
-        echo '{"ok": false, "error": "이미 녹음 중입니다."}'
-        exit 0
-        ;;
-    esac
-  fi
-  rm -f "$PID_FILE" "$AUDIO_FILE"
+DATA_DIR="${MS_DATA_DIR:-$HOME/.claude/plugins/data/meeting-simplifier-meeting-simplifier}"
+case "$(uname -s)" in
+  MINGW*|MSYS*|CYGWIN*) VENV_PYTHON="$DATA_DIR/.venv/Scripts/python.exe" ;;
+  *) VENV_PYTHON="$DATA_DIR/.venv/bin/python" ;;
+esac
+if [ ! -f "$VENV_PYTHON" ]; then
+  echo '{"ok": false, "error": "환경이 아직 준비되지 않았습니다. 잠시 후 다시 시도하세요."}'; exit 0
 fi
-
-# 출력 파일 경로
-TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-WAV_PATH="$PID_DIR/recording_${TIMESTAMP}.wav"
-
-# rec 존재 확인
-if ! command -v rec &>/dev/null; then
-  echo '{"ok": false, "error": "rec 명령어가 없습니다. brew install sox 를 실행하세요."}'
-  exit 0
-fi
-
-# 백그라운드 녹음 시작
-rec -q -r 48000 -c 1 -b 16 -e signed-integer "$WAV_PATH" &
-REC_PID=$!
-
-# 프로세스 확인
-sleep 0.3
-if ! kill -0 "$REC_PID" 2>/dev/null; then
-  echo '{"ok": false, "error": "녹음 시작에 실패했습니다."}'
-  exit 0
-fi
-
-echo "$REC_PID" > "$PID_FILE"
-echo "$WAV_PATH" > "$AUDIO_FILE"
-
-# warmup: 무음 1초짜리 wav로 --oneshot 실행 → 모델을 OS 페이지 캐시에 올림
-# 녹음하는 동안 백그라운드에서 완료되므로 변환 시점엔 이미 캐시됨
-VENV_PYTHON="$HOME/.claude/plugins/data/meeting-simplifier-meeting-simplifier/.venv/bin/python"
-WHISPER_MODEL="${WHISPER_MODEL:-medium}"
-WARMUP_DONE="$PID_DIR/warmup.done"
-
-if [ -f "$VENV_PYTHON" ] && [ ! -f "$WARMUP_DONE" ]; then
-  (
-    # 무음 1초 wav 생성 (녹음과 동일한 48kHz)
-    DUMMY_WAV=$(mktemp /tmp/warmup-XXXX.wav)
-    sox -n -r 48000 -c 1 -b 16 "$DUMMY_WAV" trim 0.0 1.0 2>/dev/null
-    if [ -f "$DUMMY_WAV" ]; then
-      # transcribe_server가 행에 걸려도 고아로 남지 않도록 timeout이 있으면 감싼다
-      RUNNER="$VENV_PYTHON"
-      command -v timeout &>/dev/null && RUNNER="timeout 120 $VENV_PYTHON"
-      WHISPER_MODEL="$WHISPER_MODEL" $RUNNER \
-        "$PLUGIN_ROOT/scripts/transcribe_server.py" \
-        --oneshot "$DUMMY_WAV" >/dev/null 2>&1
-      rm -f "$DUMMY_WAV"
-      touch "$WARMUP_DONE"
-    fi
-  ) &
-fi
-
-echo "{\"ok\": true, \"audio_path\": \"$WAV_PATH\"}"
+"$VENV_PYTHON" "$PLUGIN_ROOT/scripts/record.py" start </dev/null
