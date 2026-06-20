@@ -73,6 +73,15 @@ meeting-simplifier 플러그인을 설치해줘.
 - "녹음 끝" / "회의 끝났어" / "end meeting"
 - "이 파일 회의록으로 정리해줘"
 
+## Windows 첫 실행 (Python 자동 설치)
+
+Python이 없는 새 PC라면, 처음 **"회의 녹음 시작"** 할 때 플러그인이 Python 설치를 안내합니다:
+1. Python을 자동 설치합니다. **권한(UAC) 창이 뜨면 "예"**를 눌러주세요.
+2. 설치 후 **Claude 세션을 완전히 새로 시작**하세요(설치된 Python을 인식하기 위함 — Windows 특성).
+3. 다시 "회의 녹음 시작"을 하면 나머지(음성 인식 의존성·모델)가 자동으로 준비됩니다.
+
+winget이 없는 환경이면 [python.org](https://www.python.org/downloads/windows/)에서 Python을 설치(설치 화면에서 "Add python.exe to PATH" 체크)한 뒤 세션을 새로 시작하세요.
+
 ## Windows에서 마이크가 안 잡힐 때
 
 Windows는 데스크톱 앱 전체에 마이크 권한을 한 번에 부여합니다. 녹음이 실패하면:
