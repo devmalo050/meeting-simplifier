@@ -61,6 +61,7 @@ def fix_wav_header(path):
         return path, False
 
     tmp = tempfile.NamedTemporaryFile(suffix='.wav', delete=False)
+    tmp.close()
     with wave.open(tmp.name, 'w') as out:
         out.setparams(params._replace(nframes=actual_frames))
         out.writeframes(raw)
@@ -82,6 +83,7 @@ def split_wav(path, chunk_secs, overlap_secs):
             f.setpos(offset)
             frames = f.readframes(end - offset)
             tmp = tempfile.NamedTemporaryFile(suffix='.wav', delete=False)
+            tmp.close()
             with wave.open(tmp.name, 'w') as out:
                 out.setparams(params)
                 out.writeframes(frames)
