@@ -55,7 +55,7 @@ meeting-simplifier 플러그인을 설치해줘.
 새 Claude Code 세션에서 채팅에 한마디면 됩니다:
 
 - **"회의 녹음 시작해줘"** → 회의가 끝나면 **"회의 끝났어"**
-- 생성된 회의록은 `~/Documents/meetings/`에 자동 저장됩니다. 저장 위치를 바꾸려면 "회의록 저장 위치 바꿔줘"라고 말하세요([상세](#회의록-저장-위치-바꾸기)).
+- 생성된 회의록은 기본 폴더(macOS `~/Documents/meetings/`, Windows `~/Desktop/meetings/`)에 자동 저장됩니다. 저장 위치를 바꾸려면 "회의록 저장 위치 바꿔줘"라고 말하세요([상세](#회의록-저장-위치-바꾸기)).
 
 ## 사용법
 
@@ -90,7 +90,7 @@ Windows는 데스크톱 앱 전체에 마이크 권한을 한 번에 부여합�
 
 ## 회의록 저장 위치 바꾸기
 
-회의록은 기본적으로 `~/Documents/meetings` 아래에 저장됩니다. 다른 폴더로 바꾸려면 그냥 말로 요청하세요.
+회의록은 기본적으로 macOS는 `~/Documents/meetings`, Windows는 `~/Desktop/meetings` 아래에 저장됩니다. 다른 폴더로 바꾸려면 그냥 말로 요청하세요.
 
 - 변경: "회의록 저장 위치 바꿔줘" 또는 "회의록 바탕화면에 저장해줘"
 - 확인: "회의록 지금 어디에 저장돼?"
@@ -102,12 +102,14 @@ Windows는 데스크톱 앱 전체에 마이크 권한을 한 번에 부여합�
 
 | 항목 | 기본값 |
 |------|------|
-| 저장 위치 | `~/Documents/meetings` (쓰기 권한 없으면 `~/Desktop`으로 대체, 자연어로 변경 가능) |
+| 저장 위치 | macOS `~/Documents/meetings` · Windows `~/Desktop/meetings` (쓰기 권한 없으면 `~/Desktop`으로 대체, 자연어로 변경 가능) |
 | 출력 포맷 | Markdown (`.md`) |
 | 회의록 언어 | 트랜스크립트의 주 언어 |
 | 음성 인식 모델 | Whisper `medium` (환경변수 `WHISPER_MODEL`로 변경 가능) |
 
 ## 저장 구조
+
+기본 폴더(macOS `~/Documents/meetings`, Windows `~/Desktop/meetings`) 아래에 회의별로 생성됩니다.
 
 ```
 ~/Documents/meetings/
@@ -125,7 +127,7 @@ bash ~/.claude/plugins/cache/*/meeting-simplifier/*/scripts/uninstall.sh
 # 로컬 클론을 쓴 경우: bash <클론경로>/scripts/uninstall.sh
 ```
 
-이 스크립트는 모델 캐시 · 임시 파일 · 가상환경 · 설치 마커를 지웁니다. **회의록(`~/Documents/meetings`)은 보존됩니다.**
+이 스크립트는 모델 캐시 · 임시 파일 · 가상환경 · 설치 마커를 지웁니다. **회의록(macOS `~/Documents/meetings`, Windows `~/Desktop/meetings`)은 보존됩니다.**
 
 다음은 수동 정리가 필요합니다:
 - 마켓플레이스 등록 해제: `/plugin marketplace remove meeting-simplifier`

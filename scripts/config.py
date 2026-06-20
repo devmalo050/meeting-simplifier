@@ -8,7 +8,10 @@ import json
 import argparse
 from pathlib import Path
 
-DEFAULT_OUTPUT_DIR = "~/Documents/meetings"
+def default_output_dir():
+    if os.name == "nt":
+        return "~/Desktop/meetings"
+    return "~/Documents/meetings"
 
 
 def data_dir():
@@ -60,7 +63,7 @@ def unset_output_dir():
 
 
 def effective_output_dir():
-    return get_output_dir() or DEFAULT_OUTPUT_DIR
+    return get_output_dir() or default_output_dir()
 
 
 def main():
@@ -86,7 +89,7 @@ def main():
             unset_output_dir()
             print(json.dumps({
                 "ok": True,
-                "output_dir": DEFAULT_OUTPUT_DIR,
+                "output_dir": default_output_dir(),
                 "is_default": True,
             }, ensure_ascii=False))
     except OSError as e:

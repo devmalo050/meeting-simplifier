@@ -30,7 +30,8 @@ def test_config_used_when_no_arg(save_mod, tmp_path):
 
 
 def test_default_when_nothing(save_mod):
-    assert save_mod.resolve_output_dir(None) == "~/Documents/meetings"
+    import config
+    assert save_mod.resolve_output_dir(None) == config.default_output_dir()
 
 
 def test_empty_string_falls_through_to_config(save_mod, tmp_path):

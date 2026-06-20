@@ -22,7 +22,17 @@ def test_get_output_dir_none_when_unset(config_mod):
 
 
 def test_effective_falls_back_to_default(config_mod):
-    assert config_mod.effective_output_dir() == "~/Documents/meetings"
+    assert config_mod.effective_output_dir() == config_mod.default_output_dir()
+
+
+def test_default_output_dir_windows(config_mod, monkeypatch):
+    monkeypatch.setattr(config_mod.os, "name", "nt")
+    assert config_mod.default_output_dir() == "~/Desktop/meetings"
+
+
+def test_default_output_dir_posix(config_mod, monkeypatch):
+    monkeypatch.setattr(config_mod.os, "name", "posix")
+    assert config_mod.default_output_dir() == "~/Documents/meetings"
 
 
 def test_set_then_get_roundtrip(config_mod, tmp_path):
@@ -78,11 +88,12 @@ def _run_cli(tmp_path, *args):
 
 
 def test_cli_show_default(tmp_path):
+    import config
     r, out = _run_cli(tmp_path, "--show")
     assert r.returncode == 0
     assert out["ok"] is True
     assert out["is_default"] is True
-    assert out["output_dir"] == "~/Documents/meetings"
+    assert out["output_dir"] == config.default_output_dir()
 
 
 def test_cli_set_then_show(tmp_path):
