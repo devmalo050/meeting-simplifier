@@ -232,12 +232,10 @@ def test_save_meeting_audio_move_failure(save_mod, tmp_path, monkeypatch):
     out_dir = tmp_path / "output"
     out_dir.mkdir()
 
-    import shutil as _shutil
     def fake_move(src, dst):
         raise OSError("디스크 꽉 참")
 
-    monkeypatch.setattr(_shutil, "move", fake_move)
-    importlib.reload(save_mod)
+    monkeypatch.setattr(save_mod.shutil, "move", fake_move)
 
     result = save_mod.save_meeting(
         title="실패오디오",
@@ -253,16 +251,15 @@ def test_save_meeting_audio_move_failure(save_mod, tmp_path, monkeypatch):
 
 def test_save_meeting_permission_error_fallback(save_mod, tmp_path, monkeypatch):
     call_count = {"n": 0}
-    real_makedirs = os.makedirs
+    real_makedirs = save_mod.os.makedirs
 
-    def fake_makedirs(path, exist_ok=False):
+    def fake_makedirs(path, mode=0o777, exist_ok=False):
         if call_count["n"] == 0:
             call_count["n"] += 1
             raise PermissionError("권한 없음")
-        real_makedirs(path, exist_ok=exist_ok)
+        real_makedirs(path, mode=mode, exist_ok=exist_ok)
 
-    monkeypatch.setattr(os, "makedirs", fake_makedirs)
-    importlib.reload(save_mod)
+    monkeypatch.setattr(save_mod.os, "makedirs", fake_makedirs)
 
     result = save_mod.save_meeting(
         title="권한없는회의",
@@ -271,7 +268,7 @@ def test_save_meeting_permission_error_fallback(save_mod, tmp_path, monkeypatch)
         fmt="md",
         output_dir="/no/permission/path",
     )
-    assert "Desktop" in result["saved_dir"]
+    assert result["saved_dir"].startswith(str(Path.home() / "Desktop"))
 
 
 # ── Step 4: docx 경로 테스트 ─────────────────────────────────────────────────
