@@ -38,7 +38,7 @@ ms_env_status() {
 ms_env_message() {
   case "$1" in
     python_missing) printf 'Python이 설치되어 있지 않습니다.' ;;
-    venv_pending) printf '환경 준비가 필요합니다. 설치를 시작합니다.' ;;
+    venv_pending) printf '환경 준비가 필요합니다. 잠시 후 다시 시도하거나, 회의 녹음 시작을 한 번 더 실행해 주세요.' ;;
     installing) printf '환경 설치가 진행 중입니다. 1~2분 후 다시 시도하세요.' ;;
     deps_failed) printf '환경 설치에 실패했습니다. 잠시 후 다시 시도하거나 세션을 새로 시작하세요.' ;;
     *) printf '환경이 준비되지 않았습니다.' ;;

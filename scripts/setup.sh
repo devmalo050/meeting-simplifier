@@ -36,6 +36,7 @@ fi
 
 PY_OK=$("$PYTHON_CMD" -c "import sys; print(1 if sys.version_info[:2] >= (3,9) else 0)" 2>/dev/null)
 if [ "$PY_OK" != "1" ]; then
+  set_status "failed:Python 3.9 이상이 필요합니다"
   echo "⚠️  Python 3.9 이상이 필요합니다."
   exit 1
 fi
@@ -45,14 +46,14 @@ if [ "$IS_WIN" = "1" ]; then VENV_PYTHON="$VENV_DIR/Scripts/python.exe"; else VE
 
 if [ ! -f "$VENV_PYTHON" ]; then
   echo "📦 Python 가상환경을 생성합니다..."
-  "$PYTHON_CMD" -m venv "$VENV_DIR" || { echo "❌ venv 생성 실패"; exit 1; }
+  "$PYTHON_CMD" -m venv "$VENV_DIR" || { set_status "failed:venv 생성 실패"; echo "❌ venv 생성 실패"; exit 1; }
 fi
 
 set_status "installing_deps"
 if ! "$VENV_PYTHON" -c "import faster_whisper, sounddevice, psutil, numpy" 2>/dev/null; then
   echo "📦 핵심 의존성을 설치합니다 (faster-whisper, sounddevice, psutil, numpy)..."
   "$VENV_PYTHON" -m pip install --quiet faster-whisper sounddevice psutil numpy \
-    || { echo "❌ 핵심 의존성 설치 실패. 수동: pip install faster-whisper sounddevice psutil numpy"; exit 1; }
+    || { set_status "failed:핵심 의존성 설치 실패"; echo "❌ 핵심 의존성 설치 실패. 수동: pip install faster-whisper sounddevice psutil numpy"; exit 1; }
 fi
 
 if ! "$VENV_PYTHON" -c "import docx" 2>/dev/null; then
