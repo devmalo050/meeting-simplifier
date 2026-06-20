@@ -108,12 +108,17 @@ def main():
     parser.add_argument('--transcript-file', default='', help='전체 트랜스크립트가 담긴 파일 경로 (본문 끝에 코드로 추가됨)')
     args = parser.parse_args()
 
+    title = args.title.strip()
+    if not title:
+        print(json.dumps({"error": "제목(--title)이 비어 있습니다."}, ensure_ascii=False))
+        sys.exit(1)
+
     with open(args.minutes_file, 'r', encoding='utf-8') as f:
         minutes = f.read()
 
     try:
         result = save_meeting(
-            title=args.title,
+            title=title,
             minutes=minutes,
             audio_path=args.audio_path or '',
             fmt=args.format,
