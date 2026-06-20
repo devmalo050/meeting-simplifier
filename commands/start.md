@@ -17,6 +17,16 @@ PLUGIN_DIR="${PLUGIN_DIR%/}"
 bash "$PLUGIN_DIR/scripts/start_recording.sh"
 ```
 
-결과 JSON을 파싱합니다:
+결과 JSON으로 분기합니다. **임의의 winget/pip/python 설치 명령을 직접 만들지 말고, 아래 정해진 행동만 하세요.**
+
 - `"ok": true` → "녹음을 시작했습니다. 회의가 끝나면 '녹음 끝' 또는 '회의록 만들어줘' 라고 말씀해주세요."
-- `"ok": false` → `error` 값을 사용자에게 그대로 전달하세요. (마이크 권한 안내가 포함될 수 있습니다.)
+- `"status": "python_missing"` → "Python을 설치하겠습니다"라고 알린 뒤, **아래 `install_python.sh`만** 실행하고 그 결과 `message`를 사용자에게 그대로 전달하세요(특히 "세션을 새로 시작" 안내가 있으면 강조):
+  ```bash
+  bash "$PLUGIN_DIR/scripts/install_python.sh"
+  ```
+- `"status": "venv_pending"` → 환경 준비를 백그라운드로 시작하고, 사용자에게 "환경 준비를 시작했습니다. 1~2분 후 다시 '녹음 시작'을 해주세요"라고만 안내하세요:
+  ```bash
+  MS_SETUP_MARKER="$DATA_DIR/.setup-complete" nohup bash "$PLUGIN_DIR/scripts/setup.sh" </dev/null >"$DATA_DIR/setup.log" 2>&1 &
+  ```
+- `"status": "installing"` → 직접 아무것도 실행하지 말고 `message`("…1~2분 후 다시 시도…")를 사용자에게 그대로 전달하세요.
+- `"status": "deps_failed"` → `message`를 사용자에게 그대로 전달하고 중단하세요.

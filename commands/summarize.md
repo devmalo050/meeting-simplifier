@@ -21,6 +21,10 @@ PLUGIN_DIR="${PLUGIN_DIR%/}"
 bash "$PLUGIN_DIR/scripts/transcribe.sh" "<file_path>"
 ```
 - `error` 키가 있으면 에러 메시지를 전달하고 중단합니다.
+- `"status"`가 있고 `"ok": false`면, **직접 설치 명령을 만들지 말고** `message`를 사용자에게 그대로 전달하고 중단합니다. 단 `status`가 `python_missing`이면 "Python을 설치하겠습니다"라고 알린 뒤 아래 `install_python.sh`만 실행하고 그 결과 `message`를 그대로 전달합니다(installing/venv_pending/deps_failed는 message만 전달):
+  ```bash
+  bash "$PLUGIN_DIR/scripts/install_python.sh"
+  ```
 - 완료 후 "변환 완료"를 알립니다.
 - `transcript`, `language`, `transcript_file` 값을 기억합니다.
 
