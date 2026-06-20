@@ -5,6 +5,10 @@ DATA_DIR="${MS_DATA_DIR:-$HOME/.claude/plugins/data/meeting-simplifier-meeting-s
 LOCK_FILE="$DATA_DIR/setup.lock"
 mkdir -p "$DATA_DIR"
 
+STATE_DIR="$DATA_DIR/state"
+mkdir -p "$STATE_DIR"
+set_status() { printf '%s' "$1" > "$STATE_DIR/setup_status"; }
+
 if [ -f "$LOCK_FILE" ]; then
   LOCK_PID=$(cat "$LOCK_FILE" 2>/dev/null)
   if [ -n "$LOCK_PID" ] && kill -0 "$LOCK_PID" 2>/dev/null; then
@@ -25,7 +29,8 @@ for cmd in $CANDIDATES; do
   if command -v "$cmd" &>/dev/null; then PYTHON_CMD="$cmd"; break; fi
 done
 if [ -z "$PYTHON_CMD" ]; then
-  echo "⚠️  Python이 없습니다. Windows: winget install -e --id Python.Python.3.12 / macOS: brew install python"
+  set_status "python_missing"
+  echo "⚠️  Python이 없습니다. '회의 녹음 시작' 시 자동 설치 안내가 진행됩니다."
   exit 1
 fi
 
@@ -43,6 +48,7 @@ if [ ! -f "$VENV_PYTHON" ]; then
   "$PYTHON_CMD" -m venv "$VENV_DIR" || { echo "❌ venv 생성 실패"; exit 1; }
 fi
 
+set_status "installing_deps"
 if ! "$VENV_PYTHON" -c "import faster_whisper, sounddevice, psutil, numpy" 2>/dev/null; then
   echo "📦 핵심 의존성을 설치합니다 (faster-whisper, sounddevice, psutil, numpy)..."
   "$VENV_PYTHON" -m pip install --quiet faster-whisper sounddevice psutil numpy \
@@ -67,6 +73,7 @@ if [ ! -d "$MODEL_CACHE" ] && [ -d "$OLD_HF_HUB" ]; then
   done
 fi
 
+set_status "downloading_model"
 if [ ! -d "$MODEL_CACHE" ]; then
   echo "📦 Whisper ${WHISPER_MODEL} 모델을 다운로드합니다 (최초 1회)..."
   HF_HOME="$HF_HOME" "$VENV_PYTHON" -c "from faster_whisper import WhisperModel; WhisperModel('${WHISPER_MODEL}', device='cpu', compute_type='int8')" 2>/dev/null \
@@ -76,3 +83,5 @@ fi
 if [ -n "$MS_SETUP_MARKER" ] && "$VENV_PYTHON" -c "import faster_whisper, sounddevice, psutil, numpy" 2>/dev/null; then
   touch "$MS_SETUP_MARKER"
 fi
+
+set_status "ready"
