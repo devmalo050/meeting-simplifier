@@ -39,6 +39,12 @@ def test_set_expands_user(config_mod, monkeypatch, tmp_path):
     assert resolved == str(tmp_path / "Desktop" / "x")
 
 
+def test_set_makes_relative_absolute(config_mod, tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    resolved = config_mod.set_output_dir('sub/dir')
+    assert Path(resolved).is_absolute()
+
+
 def test_unset_reverts_to_none(config_mod, tmp_path):
     config_mod.set_output_dir(str(tmp_path / "a"))
     config_mod.unset_output_dir()

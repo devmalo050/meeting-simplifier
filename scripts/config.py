@@ -45,7 +45,7 @@ def get_output_dir():
 
 
 def set_output_dir(path):
-    resolved = str(Path(path).expanduser())
+    resolved = str(Path(path).expanduser().absolute())
     Path(resolved).mkdir(parents=True, exist_ok=True)
     cfg = load_config()
     cfg["output_dir"] = resolved
