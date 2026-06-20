@@ -1,3 +1,4 @@
+import json
 import os
 import subprocess
 from pathlib import Path
@@ -39,3 +40,13 @@ def test_env_status_ready(tmp_path):
     (tmp_path / "state").mkdir()
     (tmp_path / ".venv").symlink_to(REPO / ".venv")
     assert _status(tmp_path) == "ready"
+
+
+def test_install_python_present_when_python_exists():
+    r = subprocess.run(
+        ["bash", str(SCRIPTS / "install_python.sh")],
+        capture_output=True, text=True,
+    )
+    data = json.loads(r.stdout)
+    assert data["ok"] is True
+    assert data["status"] == "python_present"
