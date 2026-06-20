@@ -31,8 +31,13 @@ description: >
    bash "$PLUGIN_DIR/scripts/transcribe.sh" "<1단계 audio_path>"
    ```
    - `error` 키가 있으면 에러 메시지를 사용자에게 전달하고 중단합니다.
-   - `"status"`가 있고 `"ok": false`면, **직접 설치 명령을 만들지 말고** `message`를 사용자에게 그대로 전달하고 중단합니다. 단 `status`가 `python_missing`이면 "Python을 설치하겠습니다"라고 알린 뒤 아래 `install_python.sh`만 실행하고 그 결과 `message`를 그대로 전달합니다(installing/venv_pending/deps_failed는 message만 전달):
+   - `"status"`가 있고 `"ok": false`면, **직접 설치 명령을 만들지 말고** `message`를 사용자에게 그대로 전달하고 중단합니다. 단 `status`가 `python_missing`이면 "Python을 설치하겠습니다"라고 알린 뒤 아래 `install_python.sh`만 실행하고 그 결과 `message`를 그대로 전달합니다(installing/venv_pending/deps_failed는 message만 전달). 새 셸이라 PLUGIN_DIR을 다시 유도합니다:
      ```bash
+     DATA_DIR="${MS_DATA_DIR:-$HOME/.claude/plugins/data/meeting-simplifier-meeting-simplifier}"
+     PLUGIN_DIR="$(cat "$DATA_DIR/state/plugin_root" 2>/dev/null)"
+     [ -z "$PLUGIN_DIR" ] && PLUGIN_DIR="$(ls -d ~/.claude/plugins/cache/*/meeting-simplifier/*/ 2>/dev/null | sort -V | tail -1)"
+     [ -z "$PLUGIN_DIR" ] && PLUGIN_DIR=~/.claude/plugins/marketplaces/meeting-simplifier
+     PLUGIN_DIR="${PLUGIN_DIR%/}"
      bash "$PLUGIN_DIR/scripts/install_python.sh"
      ```
    - 완료 후 "변환 완료"를 사용자에게 알립니다.
