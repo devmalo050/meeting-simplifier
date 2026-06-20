@@ -11,6 +11,8 @@ import argparse
 from datetime import datetime
 from pathlib import Path
 
+import config
+
 
 def sanitize_dir_name(title):
     cleaned = re.sub(r'[<>:"/\\|?*]', '', title)
@@ -90,13 +92,19 @@ def save_meeting(title, minutes, audio_path, fmt, output_dir, transcript_file=''
     return result
 
 
+def resolve_output_dir(arg_output_dir):
+    if arg_output_dir:
+        return arg_output_dir
+    return config.effective_output_dir()
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--title', required=True)
     parser.add_argument('--minutes-file', required=True, help='회의록 내용이 담긴 임시 파일 경로')
     parser.add_argument('--audio-path', default='')
     parser.add_argument('--format', default='md', choices=['md', 'txt', 'docx'])
-    parser.add_argument('--output-dir', default='~/Documents/meetings')
+    parser.add_argument('--output-dir', default=None)
     parser.add_argument('--transcript-file', default='', help='전체 트랜스크립트가 담긴 파일 경로 (본문 끝에 코드로 추가됨)')
     args = parser.parse_args()
 
@@ -109,7 +117,7 @@ def main():
             minutes=minutes,
             audio_path=args.audio_path or '',
             fmt=args.format,
-            output_dir=args.output_dir,
+            output_dir=resolve_output_dir(args.output_dir),
             transcript_file=args.transcript_file or '',
         )
         print(json.dumps(result, ensure_ascii=False))
