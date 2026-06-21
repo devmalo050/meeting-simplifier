@@ -129,6 +129,19 @@ def test_fix_wav_header_exception_returns_original(ts, tmp_path):
     assert was_fixed is False
 
 
+def test_fix_wav_header_list_chunk_not_falsely_fixed(ts, tmp_path):
+    """LIST 청크가 있어도 nframes가 정상이면 was_fixed=False여야 한다.
+
+    data 오프셋을 0으로 보던 과거 구현은 LIST 크기만큼 actual_frames를 부풀려
+    거짓으로 was_fixed=True를 냈다.
+    """
+    p = tmp_path / "list_ok.wav"
+    _make_wav_with_list_chunk(p, 1.0, list_bytes=4000)
+    result_path, was_fixed = ts.fix_wav_header(str(p))
+    assert was_fixed is False
+    assert result_path == str(p)
+
+
 # ---------------------------------------------------------------------------
 # split_wav
 # ---------------------------------------------------------------------------
