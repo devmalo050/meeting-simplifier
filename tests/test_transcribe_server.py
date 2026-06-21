@@ -43,6 +43,21 @@ def _make_wav(path, seconds, rate=16000):
         w.writeframes(b"\x00\x00" * int(rate * seconds))
 
 
+def _make_wav_with_list_chunk(path, seconds, rate=16000, list_bytes=4000):
+    """표준 WAV의 data 청크 앞에 LIST 메타데이터 청크를 끼워, 헤더가 44바이트보다 큰 파일 생성."""
+    base = path.parent / "_list_base.wav"
+    _make_wav(base, seconds, rate)
+    raw = bytearray(base.read_bytes())
+    base.unlink()
+    assert raw[36:40] == b"data"
+    payload = b"x" * (list_bytes + (list_bytes & 1))
+    list_chunk = b"LIST" + len(payload).to_bytes(4, "little") + payload
+    new = raw[:36] + list_chunk + raw[36:]
+    riff_size = int.from_bytes(new[4:8], "little") + len(list_chunk)
+    new[4:8] = riff_size.to_bytes(4, "little")
+    path.write_bytes(bytes(new))
+
+
 # ---------------------------------------------------------------------------
 # read_wav_duration
 # ---------------------------------------------------------------------------
@@ -57,6 +72,14 @@ def test_read_wav_duration_normal(ts, tmp_path):
 def test_read_wav_duration_missing_file(ts, tmp_path):
     result = ts.read_wav_duration(str(tmp_path / "nonexistent.wav"))
     assert result == 0
+
+
+def test_read_wav_duration_with_list_chunk(ts, tmp_path):
+    """LIST 청크로 헤더가 44바이트보다 큰 WAV에서도 정확한 길이를 내야 한다."""
+    p = tmp_path / "list.wav"
+    _make_wav_with_list_chunk(p, 2.0, list_bytes=4000)
+    dur = ts.read_wav_duration(str(p))
+    assert abs(dur - 2.0) < 0.1
 
 
 # ---------------------------------------------------------------------------
@@ -120,11 +143,10 @@ def test_split_wav_single_chunk(ts, tmp_path, monkeypatch):
         os.unlink(c)
 
 
-def test_split_wav_multiple_chunks(ts, tmp_path, monkeypatch):
-    """CHUNK_SECS를 1초로 monkeypatch해 3초 WAV → 3청크."""
+def test_split_wav_multiple_chunks(ts, tmp_path):
+    """3초 WAV를 1초 청크로 분할 → 3청크 (chunk_secs는 인자로 직접 전달)."""
     p = tmp_path / "long.wav"
     _make_wav(p, 3.0)
-    monkeypatch.setattr(ts, "CHUNK_SECS", 1)
     chunks = ts.split_wav(str(p), chunk_secs=1, overlap_secs=0)
     assert len(chunks) == 3
     for c in chunks:

@@ -17,16 +17,37 @@ OVERLAP_SECS = 0
 def transcript_out_dir():
     return str(state_dir())
 
+def _data_chunk_offset(path):
+    # node-record-lpcm16은 data 청크 크기를 부정확하게 기록하므로 크기 필드는 신뢰하지 않는다.
+    # data 청크 시작 오프셋만 raw RIFF 파싱으로 구하고(LIST 등 선행 청크 대응), 길이는 파일 크기에서 계산한다.
+    with open(path, 'rb') as f:
+        if f.read(4) != b'RIFF':
+            return None
+        f.seek(4, 1)
+        if f.read(4) != b'WAVE':
+            return None
+        while True:
+            header = f.read(8)
+            if len(header) < 8:
+                return None
+            chunk_id = header[0:4]
+            chunk_size = int.from_bytes(header[4:8], 'little')
+            if chunk_id == b'data':
+                return f.tell()
+            f.seek(chunk_size + (chunk_size & 1), 1)
+
+
 def read_wav_duration(path):
     try:
         with wave.open(path, 'r') as f:
             params = f.getparams()
-            # node-record-lpcm16은 WAV 헤더의 nframes를 올바르게 기록하지 않음
-            # 실제 파일 크기로 프레임 수를 계산
-            file_size = os.path.getsize(path)
-            header_size = 44
-            actual_frames = (file_size - header_size) // (params.nchannels * params.sampwidth)
-            return actual_frames / params.framerate
+        frame_size = params.nchannels * params.sampwidth
+        offset = _data_chunk_offset(path)
+        if offset is None:
+            return 0
+        file_size = os.path.getsize(path)
+        actual_frames = max(0, file_size - offset) // frame_size
+        return actual_frames / params.framerate
     except Exception:
         return 0
 
