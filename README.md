@@ -45,7 +45,7 @@ meeting-simplifier 플러그인을 설치해줘.
 | 필요한 것 | 비고 |
 |---|---|
 | Claude Code (CLI 또는 데스크톱 앱) | Windows는 **데스크톱 앱의 Code 탭 + Local 세션**에서 동작 (Chat 탭·Remote 세션 불가) |
-| Windows: Git for Windows | 데스크톱 앱 Code 탭이 요구 — 설치 시 Git Bash 포함 |
+| Windows: Git for Windows | Claude Desktop이 Bash 스크립트 실행에 필요 — [git-scm.com/download/win](https://git-scm.com/download/win) 에서 설치, Git Bash 포함 |
 | Python 3.9+ | macOS 기본 내장 / Windows: `winget install -e --id Python.Python.3.12` (Microsoft Store 버전은 비권장) |
 
 `sounddevice`·`faster-whisper`·Whisper 모델(약 1.5GB)은 설치 후 첫 세션에서 플러그인이 자동으로 내려받습니다. SoX 등 외부 녹음 도구는 더 이상 필요 없습니다.
@@ -55,7 +55,7 @@ meeting-simplifier 플러그인을 설치해줘.
 새 Claude Code 세션에서 채팅에 한마디면 됩니다:
 
 - **"회의 녹음 시작해줘"** → 회의가 끝나면 **"회의 끝났어"**
-- 생성된 회의록은 기본 폴더(macOS `~/Documents/meetings/`, Windows `~/Desktop/meetings/`)에 자동 저장됩니다. 저장 위치를 바꾸려면 "회의록 저장 위치 바꿔줘"라고 말하세요([상세](#회의록-저장-위치-바꾸기)).
+- 생성된 회의록은 기본 폴더(macOS `~/Documents/meetings`, Windows `~/Desktop/meetings`)에 자동 저장됩니다. 저장 위치를 바꾸려면 "회의록 저장 위치 바꿔줘"라고 말하세요([상세](#회의록-저장-위치-바꾸기)).
 
 ## 사용법
 

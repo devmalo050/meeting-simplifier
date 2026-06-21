@@ -1,12 +1,15 @@
 ---
 description: >
   기존 오디오 또는 텍스트 파일로 회의록을 생성합니다.
-  트리거: "이 파일 회의록으로 정리해줘", "녹음 파일 분석해줘", "파일 첨부할게 회의록 만들어줘",
-  "summarize this recording", "make minutes from this file"
+  트리거: "파일로 회의록 정리해줘", "이 파일 회의록으로 정리해줘", "녹음 파일 분석해줘",
+  "파일 첨부할게 회의록 만들어줘", "파일 회의록", "파일 분석해서 회의록",
+  "summarize this recording", "make minutes from this file", "summarize meeting file"
 ---
 
 `$ARGUMENTS`에 파일 경로가 제공된 경우 해당 경로를 사용합니다.
 파일 경로가 없으면 사용자에게 파일 경로를 요청하세요.
+
+> 파일 경로 없이 트리거하면 경로를 되묻습니다. 경로를 함께 말하면 바로 진행됩니다 (예: "이 파일 회의록으로 정리해줘 ~/Desktop/회의.m4a").
 
 파일 확장자에 따라 처리합니다:
 

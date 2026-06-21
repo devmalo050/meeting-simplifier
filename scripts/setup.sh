@@ -77,7 +77,7 @@ fi
 set_status "downloading_model"
 if [ ! -d "$MODEL_CACHE" ]; then
   echo "📦 Whisper ${WHISPER_MODEL} 모델을 다운로드합니다 (최초 1회)..."
-  HF_HOME="$HF_HOME" "$VENV_PYTHON" -c "from faster_whisper import WhisperModel; WhisperModel('${WHISPER_MODEL}', device='cpu', compute_type='int8')" 2>/dev/null \
+  HF_HOME="$HF_HOME" "$VENV_PYTHON" -c "import sys; from faster_whisper import WhisperModel; WhisperModel(sys.argv[1], device='cpu', compute_type='int8')" "$WHISPER_MODEL" 2>/dev/null \
     && echo "✅ 모델 준비 완료" || echo "⚠️  모델 다운로드 실패 (첫 변환 시 자동 시도)"
 fi
 
