@@ -7,18 +7,15 @@ import wave
 import tempfile
 from faster_whisper import WhisperModel
 
+from paths import state_dir
+
 CHUNK_SECS = 600
 # 겹침 구간을 두면 split 후 단순 연결 시 경계 텍스트가 중복 전사되므로 0으로 둔다
 # (긴 녹음에서 청크 경계 단어 손실 가능성 < 중복으로 인한 회의록 오염)
 OVERLAP_SECS = 0
 
 def transcript_out_dir():
-    base = os.environ.get("MS_DATA_DIR") or os.path.join(
-        os.path.expanduser("~"), ".claude", "plugins", "data", "meeting-simplifier-meeting-simplifier"
-    )
-    out = os.path.join(base, "state")
-    os.makedirs(out, exist_ok=True)
-    return out
+    return str(state_dir())
 
 def read_wav_duration(path):
     try:

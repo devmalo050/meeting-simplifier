@@ -23,16 +23,6 @@ def test_state_paths_keys(record_mod):
     assert p["stop"].name == "stop.flag"
 
 
-def test_venv_python_posix(record_mod, data_dir, monkeypatch):
-    monkeypatch.setattr(record_mod, "is_windows", lambda: False)
-    assert record_mod.venv_python() == data_dir / ".venv" / "bin" / "python"
-
-
-def test_venv_python_windows(record_mod, data_dir, monkeypatch):
-    monkeypatch.setattr(record_mod, "is_windows", lambda: True)
-    assert record_mod.venv_python() == data_dir / ".venv" / "Scripts" / "python.exe"
-
-
 def test_friendly_device_error_has_korean_guidance(record_mod):
     msg = record_mod.friendly_device_error(Exception("Unanticipated host error [PaErrorCode -9999]"))
     assert "마이크" in msg

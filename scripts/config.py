@@ -8,17 +8,12 @@ import json
 import argparse
 from pathlib import Path
 
+from paths import data_dir
+
 def default_output_dir():
     if os.name == "nt":
         return "~/Desktop/meetings"
     return "~/Documents/meetings"
-
-
-def data_dir():
-    env = os.environ.get("MS_DATA_DIR")
-    if env:
-        return Path(env)
-    return Path.home() / ".claude" / "plugins" / "data" / "meeting-simplifier-meeting-simplifier"
 
 
 def config_path():
