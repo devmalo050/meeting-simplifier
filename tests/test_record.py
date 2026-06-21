@@ -331,7 +331,7 @@ def test_spawn_worker_closes_log_fd(record_mod, tmp_path, monkeypatch):
     def fake_popen(cmd, **kwargs):
         return FakeProc()
 
-    monkeypatch.setattr("builtins.open", fake_open)
+    monkeypatch.setattr(record_mod, "open", fake_open, raising=False)
     monkeypatch.setattr(subprocess, "Popen", fake_popen)
     record_mod.spawn_worker("/tmp/fake.wav")
     assert len(closed) == 1, "log FD가 Popen 이후 close되지 않았음"

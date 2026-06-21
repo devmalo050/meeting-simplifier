@@ -76,11 +76,9 @@ def report_error(message):
 def wav_duration(path):
     try:
         with wave.open(path, "r") as f:
-            params = f.getparams()
-            data_size = f._data_chunk.chunksize
-        frame_size = params.nchannels * params.sampwidth
-        frames = max(0, data_size) // frame_size
-        return round(frames / params.framerate, 1)
+            frames = f.getnframes()
+            framerate = f.getframerate()
+        return round(frames / framerate, 1)
     except Exception:
         return 0
 
