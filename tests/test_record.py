@@ -255,3 +255,146 @@ def test_stop_handles_corrupt_pid(record_mod, tmp_path, monkeypatch):
     assert out["ok"] is True
     assert not paths["pid"].exists()
     assert paths["stop"].exists() is False
+
+
+# --- json.loads 방어 테스트 ---
+
+def test_start_corrupt_result_json_returns_error(record_mod, monkeypatch):
+    def fake_spawn(audio_path):
+        record_mod.state_paths()["result"].write_text("{broken json", encoding="utf-8")
+        return 4242
+
+    monkeypatch.setattr(record_mod, "spawn_worker", fake_spawn)
+    monkeypatch.setattr(record_mod, "pid_alive", lambda pid: False)
+    monkeypatch.setattr(record_mod, "START_PROBE_SECS", 0.3)
+    out = record_mod.cmd_start([])
+    assert out["ok"] is False
+    assert "손상" in out["error"]
+
+
+def test_stop_corrupt_result_json_returns_error(record_mod, tmp_path, monkeypatch):
+    import json
+    paths = record_mod.state_paths()
+    audio = tmp_path / "rec.wav"
+    _make_wav(audio, 1.0)
+    paths["pid"].write_text("4242")
+    paths["audio"].write_text(str(audio))
+    paths["result"].write_text("{broken json", encoding="utf-8")
+    monkeypatch.setattr(record_mod, "pid_alive", lambda pid: False)
+    out = record_mod.cmd_stop([])
+    assert out["ok"] is False
+    assert "손상" in out["error"]
+
+
+# --- wav_duration LIST 청크 테스트 ---
+
+def _make_wav_with_list_chunk(path, seconds, rate=48000, list_extra_bytes=25000):
+    import struct
+    nframes = int(rate * seconds)
+    sample_data = b"\x00\x00" * nframes
+    list_payload = b"INFO" + b"ISFT" + struct.pack("<I", list_extra_bytes - 12) + b"A" * (list_extra_bytes - 12)
+    list_chunk = b"LIST" + struct.pack("<I", len(list_payload)) + list_payload
+    fmt_chunk = b"fmt " + struct.pack("<I", 16) + struct.pack("<HHIIHH", 1, 1, rate, rate * 2, 2, 16)
+    data_chunk = b"data" + struct.pack("<I", len(sample_data)) + sample_data
+    riff_body = b"WAVE" + fmt_chunk + list_chunk + data_chunk
+    wav_bytes = b"RIFF" + struct.pack("<I", len(riff_body)) + riff_body
+    with open(str(path), "wb") as f:
+        f.write(wav_bytes)
+
+
+def test_wav_duration_with_list_chunk(record_mod, tmp_path):
+    p = tmp_path / "list.wav"
+    _make_wav_with_list_chunk(p, 1.0)
+    assert abs(record_mod.wav_duration(str(p)) - 1.0) < 0.05
+
+
+# --- spawn_worker log FD close 테스트 ---
+
+def test_spawn_worker_closes_log_fd(record_mod, tmp_path, monkeypatch):
+    import subprocess
+    closed = []
+    opened = []
+
+    class FakeFile:
+        def close(self):
+            closed.append(True)
+
+    fake_file = FakeFile()
+
+    def fake_open(path, mode):
+        opened.append(path)
+        return fake_file
+
+    class FakeProc:
+        pid = 9999
+
+    def fake_popen(cmd, **kwargs):
+        return FakeProc()
+
+    monkeypatch.setattr("builtins.open", fake_open)
+    monkeypatch.setattr(subprocess, "Popen", fake_popen)
+    record_mod.spawn_worker("/tmp/fake.wav")
+    assert len(closed) == 1, "log FD가 Popen 이후 close되지 않았음"
+
+
+# --- force_kill 테스트 ---
+
+def test_force_kill_uses_psutil_when_available(record_mod, monkeypatch):
+    import types
+    calls = []
+
+    fake_psutil = types.ModuleType("psutil")
+
+    class FakeProcess:
+        def __init__(self, pid):
+            calls.append(("init", pid))
+
+        def terminate(self):
+            calls.append(("terminate",))
+
+        def wait(self, timeout):
+            calls.append(("wait", timeout))
+
+    class TimeoutExpired(Exception):
+        pass
+
+    fake_psutil.Process = FakeProcess
+    fake_psutil.TimeoutExpired = TimeoutExpired
+    monkeypatch.setitem(__import__("sys").modules, "psutil", fake_psutil)
+    record_mod.force_kill(1234)
+    assert ("init", 1234) in calls
+    assert ("terminate",) in calls
+
+
+def test_force_kill_falls_back_to_os_kill(record_mod, monkeypatch):
+    import sys, types
+    killed = []
+
+    monkeypatch.setitem(sys.modules, "psutil", None)
+
+    def fake_os_kill(pid, sig):
+        killed.append((pid, sig))
+
+    monkeypatch.setattr(record_mod.os, "kill", fake_os_kill)
+    record_mod.force_kill(5678)
+    assert (5678, 9) in killed
+
+
+# --- main dispatch 테스트 ---
+
+def test_main_no_args_returns_error(record_mod, monkeypatch, capsys):
+    import json
+    rc = record_mod.main([])
+    assert rc == 2
+    out = json.loads(capsys.readouterr().out)
+    assert out["ok"] is False
+    assert "command required" in out["error"]
+
+
+def test_main_unknown_command_returns_error(record_mod, monkeypatch, capsys):
+    import json
+    rc = record_mod.main(["badcmd"])
+    assert rc == 2
+    out = json.loads(capsys.readouterr().out)
+    assert out["ok"] is False
+    assert "badcmd" in out["error"]

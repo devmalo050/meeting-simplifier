@@ -77,9 +77,9 @@ def wav_duration(path):
     try:
         with wave.open(path, "r") as f:
             params = f.getparams()
-        file_size = os.path.getsize(path)
+            data_size = f._data_chunk.chunksize
         frame_size = params.nchannels * params.sampwidth
-        frames = max(0, (file_size - 44)) // frame_size
+        frames = max(0, data_size) // frame_size
         return round(frames / params.framerate, 1)
     except Exception:
         return 0
@@ -142,6 +142,7 @@ def spawn_worker(audio_path):
     proc = subprocess.Popen(
         [sys.executable, os.path.abspath(__file__), "_worker", audio_path], **kwargs
     )
+    log.close()
     return proc.pid
 
 
@@ -169,7 +170,10 @@ def cmd_start(argv):
     deadline = time.time() + START_PROBE_SECS
     while time.time() < deadline:
         if paths["result"].exists():
-            data = json.loads(paths["result"].read_text(encoding="utf-8"))
+            try:
+                data = json.loads(paths["result"].read_text(encoding="utf-8"))
+            except json.JSONDecodeError:
+                return {"ok": False, "error": "상태 파일이 손상되었습니다"}
             if data.get("ok") is False:
                 for key in ("pid", "audio"):
                     paths[key].unlink(missing_ok=True)
@@ -238,7 +242,11 @@ def cmd_stop(argv):
         paths[key].unlink(missing_ok=True)
 
     if paths["result"].exists():
-        data = json.loads(paths["result"].read_text(encoding="utf-8"))
+        try:
+            data = json.loads(paths["result"].read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            paths["result"].unlink(missing_ok=True)
+            return {"ok": False, "error": "상태 파일이 손상되었습니다"}
         paths["result"].unlink(missing_ok=True)
         if data.get("ok") is False:
             return data
