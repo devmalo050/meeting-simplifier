@@ -29,7 +29,8 @@ case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) VENV_PY="$DATA_DIR/.venv/Scripts/pyt
 ```bash
 "$VENV_PY" "$PLUGIN_DIR/scripts/config.py" --reset
 ```
-- "회의록 저장 위치를 기본값(`~/Documents/meetings`)으로 되돌렸습니다"를 안내합니다.
+- `"ok": true` → "회의록 저장 위치를 기본값(`~/Documents/meetings`)으로 되돌렸습니다"를 안내합니다.
+- `"ok": false` → `message`를 사용자에게 그대로 전달합니다(직접 폴더를 만들거나 다른 명령을 시도하지 마세요).
 
 **변경** ("바탕화면에 저장해줘", "저장 폴더 바꿔줘"):
 1. 사용자가 말한 위치를 절대경로로 해석합니다. 일상 표현은 표준 폴더로 매핑하세요:
@@ -37,9 +38,10 @@ case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) VENV_PY="$DATA_DIR/.venv/Scripts/pyt
    - 하위 폴더명이 있으면 이어붙입니다(예: "바탕화면 회의록" → `~/Desktop/회의록`).
 2. 위치가 모호하면 사용자에게 되묻습니다.
 3. **저장 직전에 최종 경로를 사용자에게 보여주고 확인**받습니다(예: "`~/Desktop/회의록`에 저장하도록 설정할까요?").
-4. 확인되면 실행합니다(경로는 따옴표로 감쌉니다):
+4. 확인되면 실행합니다(경로는 작은따옴표 변수에 담아 전달하며, 경로에 작은따옴표(`'`)가 들어 있으면 사용자에게 다시 확인합니다):
    ```bash
-   "$VENV_PY" "$PLUGIN_DIR/scripts/config.py" --set "<해석한 경로>"
+   MS_OUTDIR='<해석한 경로>'
+   "$VENV_PY" "$PLUGIN_DIR/scripts/config.py" --set "$MS_OUTDIR"
    ```
    - `"ok": true` → "이제부터 회의록은 `{output_dir}`에 저장됩니다"를 안내합니다.
    - `"ok": false` → `message`를 사용자에게 그대로 전달합니다(직접 폴더를 만들거나 다른 명령을 시도하지 마세요).

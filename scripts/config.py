@@ -43,6 +43,8 @@ def get_output_dir():
 
 
 def set_output_dir(path):
+    if not path or not path.strip():
+        raise ValueError("경로가 비어 있습니다.")
     resolved = str(Path(path).expanduser().absolute())
     Path(resolved).mkdir(parents=True, exist_ok=True)
     cfg = load_config()
@@ -77,7 +79,10 @@ def main():
                 "output_dir": effective_output_dir(),
                 "is_default": configured is None,
             }, ensure_ascii=False))
-        elif args.set:
+        elif args.set is not None:
+            if not args.set.strip():
+                print(json.dumps({"ok": False, "message": "경로가 비어 있습니다."}, ensure_ascii=False))
+                sys.exit(1)
             resolved = set_output_dir(args.set)
             print(json.dumps({"ok": True, "output_dir": resolved}, ensure_ascii=False))
         else:

@@ -180,8 +180,8 @@ def main():
             with open(tfile, "w", encoding="utf-8") as f:
                 f.write(result.get("transcript", ""))
             result["transcript_file"] = tfile
-        except Exception:
-            pass
+        except Exception as e:
+            print(f"트랜스크립트 파일 저장 실패: {e}", file=sys.stderr, flush=True)
         print(json.dumps(result, ensure_ascii=False), flush=True)
     except Exception as e:
         print(json.dumps({"error": str(e)}, ensure_ascii=False), flush=True)

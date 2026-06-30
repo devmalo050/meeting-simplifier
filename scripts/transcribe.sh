@@ -6,7 +6,7 @@ AUDIO_PATH="$1"
 DATA_DIR="$(ms_data_dir)"
 
 if [ -z "$AUDIO_PATH" ]; then echo '{"error": "audio_path가 필요합니다."}'; exit 1; fi
-if [ ! -f "$AUDIO_PATH" ]; then echo "{\"error\": \"파일이 없습니다: $AUDIO_PATH\"}"; exit 1; fi
+if [ ! -f "$AUDIO_PATH" ]; then echo '{"error": "파일이 없습니다."}'; exit 1; fi
 
 ST="$(ms_env_status)"
 if [ "$ST" != "ready" ]; then
@@ -15,5 +15,5 @@ if [ "$ST" != "ready" ]; then
 fi
 
 export HF_HOME="$DATA_DIR/hf"
-WHISPER_MODEL="${WHISPER_MODEL:-medium}" HF_HOME="$HF_HOME" "$(ms_venv_python)" \
+WHISPER_MODEL="${WHISPER_MODEL:-medium}" "$(ms_venv_python)" \
   "$PLUGIN_ROOT/scripts/transcribe_server.py" --oneshot "$AUDIO_PATH"

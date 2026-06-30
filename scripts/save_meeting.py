@@ -17,7 +17,10 @@ import config
 def sanitize_dir_name(title):
     cleaned = re.sub(r'[<>:"/\\|?*]', '', title)
     cleaned = re.sub(r'\s+', '-', cleaned)
-    return cleaned[:80]
+    cleaned = cleaned[:80]
+    if not cleaned.strip('-'):
+        return "meeting"
+    return cleaned
 
 
 def save_docx(file_path, title, minutes):
@@ -31,11 +34,11 @@ def save_docx(file_path, title, minutes):
     doc = Document()
     for line in minutes.split('\n'):
         if line.startswith('# '):
-            p = doc.add_heading(line[2:], level=1)
+            doc.add_heading(line[2:], level=1)
         elif line.startswith('## '):
-            p = doc.add_heading(line[3:], level=2)
+            doc.add_heading(line[3:], level=2)
         elif line.startswith('### '):
-            p = doc.add_heading(line[4:], level=3)
+            doc.add_heading(line[4:], level=3)
         else:
             doc.add_paragraph(line)
     doc.save(file_path)

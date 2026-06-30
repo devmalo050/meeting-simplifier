@@ -2,21 +2,23 @@
 # scripts/setup.sh — venv + faster-whisper + sounddevice 자동 설치 (POSIX/Git Bash)
 
 DATA_DIR="${MS_DATA_DIR:-$HOME/.claude/plugins/data/meeting-simplifier-meeting-simplifier}"
-LOCK_FILE="$DATA_DIR/setup.lock"
+LOCK_DIR="$DATA_DIR/setup.lock.d"
 mkdir -p "$DATA_DIR"
 
 STATE_DIR="$DATA_DIR/state"
 mkdir -p "$STATE_DIR"
 set_status() { printf '%s' "$1" > "$STATE_DIR/setup_status"; }
 
-if [ -f "$LOCK_FILE" ]; then
-  LOCK_PID=$(cat "$LOCK_FILE" 2>/dev/null)
+if ! mkdir "$LOCK_DIR" 2>/dev/null; then
+  LOCK_PID=$(cat "$LOCK_DIR/pid" 2>/dev/null)
   if [ -n "$LOCK_PID" ] && kill -0 "$LOCK_PID" 2>/dev/null; then
     exit 0
   fi
+  rm -rf "$LOCK_DIR"
+  mkdir "$LOCK_DIR" 2>/dev/null || exit 0
 fi
-trap 'rm -f "$LOCK_FILE"' EXIT
-echo $$ > "$LOCK_FILE"
+trap 'rm -rf "$LOCK_DIR"' EXIT
+echo $$ > "$LOCK_DIR/pid"
 
 case "$(uname -s)" in
   MINGW*|MSYS*|CYGWIN*) IS_WIN=1 ;;
@@ -70,7 +72,10 @@ OLD_HF_HUB="$HOME/.cache/huggingface/hub"
 if [ ! -d "$MODEL_CACHE" ] && [ -d "$OLD_HF_HUB" ]; then
   mkdir -p "$HF_HOME/hub"
   for m in "$OLD_HF_HUB"/models--Systran--faster-whisper-*; do
-    [ -d "$m" ] && mv "$m" "$HF_HOME/hub/" 2>/dev/null && echo "기존 모델을 이전했습니다: $(basename "$m")"
+    dest="$HF_HOME/hub/$(basename "$m")"
+    if [ -d "$m" ] && [ ! -e "$dest" ]; then
+      mv "$m" "$HF_HOME/hub/" 2>/dev/null && echo "기존 모델을 이전했습니다: $(basename "$m")"
+    fi
   done
 fi
 

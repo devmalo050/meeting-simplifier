@@ -1,5 +1,4 @@
 import sys
-import importlib
 from pathlib import Path
 import pytest
 
@@ -18,5 +17,4 @@ def data_dir(tmp_path, monkeypatch):
 @pytest.fixture
 def record_mod(data_dir):
     import record
-    importlib.reload(record)
     return record

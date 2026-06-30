@@ -9,7 +9,7 @@ import pytest
 SCRIPTS = Path(__file__).resolve().parent.parent / "scripts"
 sys.path.insert(0, str(SCRIPTS))
 
-PYTHON = str(Path(__file__).resolve().parent.parent / ".venv" / "bin" / "python")
+PYTHON = sys.executable
 
 
 @pytest.fixture
@@ -250,6 +250,8 @@ def test_save_meeting_audio_move_failure(save_mod, tmp_path, monkeypatch):
 
 
 def test_save_meeting_permission_error_fallback(save_mod, tmp_path, monkeypatch):
+    monkeypatch.setattr(save_mod.Path, "home", lambda: tmp_path)
+
     call_count = {"n": 0}
     real_makedirs = save_mod.os.makedirs
 
@@ -268,7 +270,7 @@ def test_save_meeting_permission_error_fallback(save_mod, tmp_path, monkeypatch)
         fmt="md",
         output_dir="/no/permission/path",
     )
-    assert result["saved_dir"].startswith(str(Path.home() / "Desktop"))
+    assert result["saved_dir"].startswith(str(tmp_path / "Desktop"))
 
 
 # ── Step 4: docx 경로 테스트 ─────────────────────────────────────────────────

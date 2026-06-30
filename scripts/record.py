@@ -7,7 +7,7 @@ import time
 import wave
 from pathlib import Path
 
-from paths import is_windows, data_dir, state_dir, venv_python
+from paths import is_windows, data_dir, state_dir
 
 SAMPLE_RATE = 48000
 CHANNELS = 1
@@ -141,7 +141,7 @@ def cmd_start(argv):
     audio_path = str(state_dir() / f"recording_{time.strftime('%Y%m%d_%H%M%S')}.wav")
     pid = spawn_worker(audio_path)
     paths["pid"].write_text(str(pid))
-    paths["audio"].write_text(audio_path)
+    paths["audio"].write_text(audio_path, encoding="utf-8")
 
     deadline = time.time() + START_PROBE_SECS
     while time.time() < deadline:
@@ -200,7 +200,7 @@ def cmd_stop(argv):
         pid = int(paths["pid"].read_text().strip())
     except ValueError:
         pid = None
-    audio_path = paths["audio"].read_text().strip() if paths["audio"].exists() else ""
+    audio_path = paths["audio"].read_text(encoding="utf-8").strip() if paths["audio"].exists() else ""
 
     paths["stop"].touch()
     if pid is not None:

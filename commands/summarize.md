@@ -9,6 +9,8 @@ description: >
 `$ARGUMENTS`에 파일 경로가 제공된 경우 해당 경로를 사용합니다.
 파일 경로가 없으면 사용자에게 파일 경로를 요청하세요.
 
+`<file_path>` 등 외부 유래 값은 큰따옴표 안에 직접 보간하지 말고, 반드시 작은따옴표 변수 대입(`VAR='...'`) 후 `"$VAR"`로 참조합니다. 값에 작은따옴표(`'`)가 들어있으면 제거하거나 사용자에게 다시 물어보고, 임의 명령으로 해석될 수 있는 형태는 그대로 셸에 넣지 않습니다.
+
 > 파일 경로 없이 트리거하면 경로를 되묻습니다. 경로를 함께 말하면 바로 진행됩니다 (예: "이 파일 회의록으로 정리해줘 ~/Desktop/회의.m4a").
 
 파일 확장자에 따라 처리합니다:
@@ -21,7 +23,8 @@ PLUGIN_DIR="$(cat "$DATA_DIR/state/plugin_root" 2>/dev/null)"
 [ -z "$PLUGIN_DIR" ] && PLUGIN_DIR="$(ls -d ~/.claude/plugins/cache/*/meeting-simplifier/*/ 2>/dev/null | sort -V | tail -1)"
 [ -z "$PLUGIN_DIR" ] && PLUGIN_DIR=~/.claude/plugins/marketplaces/meeting-simplifier
 PLUGIN_DIR="${PLUGIN_DIR%/}"
-bash "$PLUGIN_DIR/scripts/transcribe.sh" "<file_path>"
+FILE_PATH='<file_path>'
+bash "$PLUGIN_DIR/scripts/transcribe.sh" "$FILE_PATH"
 ```
 - `error` 키가 있으면 에러 메시지를 전달하고 중단합니다.
 - `"status"`가 있고 `"ok": false`면, **직접 설치 명령을 만들지 말고** `message`를 사용자에게 그대로 전달하고 중단합니다. 단 `status`가 `python_missing`이면 "Python을 설치하겠습니다"라고 알린 뒤 아래 `install_python.sh`만 실행하고 그 결과 `message`를 그대로 전달합니다(installing/venv_pending/deps_failed는 message만 전달). 새 셸이라 PLUGIN_DIR을 다시 유도합니다:
@@ -38,7 +41,8 @@ bash "$PLUGIN_DIR/scripts/transcribe.sh" "<file_path>"
 
 **텍스트 파일 (`.txt`, `.md`):**
 ```bash
-cat "<file_path>"
+FILE_PATH='<file_path>'
+cat "$FILE_PATH"
 ```
 파일 내용을 트랜스크립트로 사용합니다. 이 경우 트랜스크립트 파일은 원본 `<file_path>` 자체입니다.
 

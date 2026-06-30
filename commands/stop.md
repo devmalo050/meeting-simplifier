@@ -28,7 +28,8 @@ description: >
    [ -z "$PLUGIN_DIR" ] && PLUGIN_DIR="$(ls -d ~/.claude/plugins/cache/*/meeting-simplifier/*/ 2>/dev/null | sort -V | tail -1)"
    [ -z "$PLUGIN_DIR" ] && PLUGIN_DIR=~/.claude/plugins/marketplaces/meeting-simplifier
    PLUGIN_DIR="${PLUGIN_DIR%/}"
-   bash "$PLUGIN_DIR/scripts/transcribe.sh" "<1단계 audio_path>"
+   MS_AUDIO='<1단계 audio_path>'
+   bash "$PLUGIN_DIR/scripts/transcribe.sh" "$MS_AUDIO"
    ```
    - `error` 키가 있으면 에러 메시지를 사용자에게 전달하고 중단합니다.
    - `"status"`가 있고 `"ok": false`면, **직접 설치 명령을 만들지 말고** `message`를 사용자에게 그대로 전달하고 중단합니다. 단 `status`가 `python_missing`이면 "Python을 설치하겠습니다"라고 알린 뒤 아래 `install_python.sh`만 실행하고 그 결과 `message`를 그대로 전달합니다(installing/venv_pending/deps_failed는 message만 전달). 새 셸이라 PLUGIN_DIR을 다시 유도합니다:
@@ -44,7 +45,7 @@ description: >
    - `transcript`, `language`, `transcript_file` 값을 기억합니다.
 
 3. 트랜스크립트를 바탕으로 다음 항목을 분석합니다:
-   - **회의 제목**: 내용을 보고 간결한 한국어 제목 생성 (예: "분기-마케팅-전략-회의")
+   - **회의 제목**: 내용을 보고 간결한 한국어 제목 생성 (예: "분기-마케팅-전략-회의"). 제목에는 작은따옴표(`'`)·백틱(`` ` ``)·`$(...)` 등 셸 메타문자를 넣지 말고 한글·숫자·공백·하이픈 위주로 만듭니다.
    - **언어**: 트랜스크립트의 주요 언어로 작성
 
 4. 아래 형식으로 회의록 본문(마크다운)을 작성합니다.
@@ -90,7 +91,20 @@ description: >
     ## 다음 단계
     {후속 일정·계획 — 있을 때만 이 섹션 포함}
 
-5. Bash 도구로 회의록을 저장합니다:
+5. 회의록 본문을 임시 파일에 기록하고 저장합니다.
+
+   먼저 Bash 도구로 저장용 임시 파일 경로를 만듭니다:
+   ```bash
+   DATA_DIR="${MS_DATA_DIR:-$HOME/.claude/plugins/data/meeting-simplifier-meeting-simplifier}"
+   mkdir -p "$DATA_DIR/state"
+   MINUTES_FILE=$(mktemp 2>/dev/null || echo "$DATA_DIR/state/minutes.md")
+   echo "$MINUTES_FILE"
+   ```
+   출력된 경로를 기억합니다.
+
+   다음으로 **Write 도구**로 4단계에서 작성한 회의록 본문을 위 경로(`$MINUTES_FILE`)에 그대로 기록합니다. (셸 heredoc을 쓰지 않습니다 — 본문에 어떤 문자가 있어도 안전하게 파일로 저장하기 위함입니다.)
+
+   마지막으로 Bash 도구로 저장 스크립트를 호출합니다(새 셸이라 경로를 다시 유도). 제목·경로는 작은따옴표 변수에 담아 전달하며, 값에 작은따옴표(`'`)가 포함되면 제거합니다:
    ```bash
    DATA_DIR="${MS_DATA_DIR:-$HOME/.claude/plugins/data/meeting-simplifier-meeting-simplifier}"
    PLUGIN_DIR="$(cat "$DATA_DIR/state/plugin_root" 2>/dev/null)"
@@ -98,14 +112,13 @@ description: >
    [ -z "$PLUGIN_DIR" ] && PLUGIN_DIR=~/.claude/plugins/marketplaces/meeting-simplifier
    PLUGIN_DIR="${PLUGIN_DIR%/}"
    case "$(uname -s)" in MINGW*|MSYS*|CYGWIN*) VENV_PY="$DATA_DIR/.venv/Scripts/python.exe";; *) VENV_PY="$DATA_DIR/.venv/bin/python";; esac
-   MINUTES_FILE=$(mktemp 2>/dev/null || echo "$DATA_DIR/state/minutes.md")
-   cat > "$MINUTES_FILE" << 'MINUTES_EOF'
-{회의록 내용}
-MINUTES_EOF
+   MS_TITLE='{회의 제목}'
+   MS_AUDIO='{1단계 audio_path}'
+   MS_TF='{2단계 transcript_file}'
    "$VENV_PY" "$PLUGIN_DIR/scripts/save_meeting.py" \
-     --title "{회의 제목}" --minutes-file "$MINUTES_FILE" \
-     --audio-path "{1단계 audio_path}" --transcript-file "{2단계 transcript_file}"
-   rm -f "$MINUTES_FILE"
+     --title "$MS_TITLE" --minutes-file "<위에서 출력된 MINUTES_FILE 경로>" \
+     --audio-path "$MS_AUDIO" --transcript-file "$MS_TF"
+   rm -f "<위에서 출력된 MINUTES_FILE 경로>"
    ```
    - `error` 키가 있으면 에러 메시지를 사용자에게 전달합니다.
 

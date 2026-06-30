@@ -7,7 +7,7 @@
 - 마이크 녹음 시작/중지
 - Whisper medium으로 한국어/영어 자동 음성 인식 (언어 자동 감지)
 - Claude로 회의록 자동 생성 (요약, 상세내용, 결정사항, 액션아이템, 트랜스크립트)
-- md / txt / docx 포맷 저장
+- Markdown(.md) 회의록 저장 (txt/docx는 수동 CLI `--format` 옵션으로 가능)
 - 자연어 트리거 지원 ("녹음 시작해줘", "회의 끝났어" 등)
 - macOS · Windows 지원 (Claude Desktop 앱 Code 탭 / CLI)
 

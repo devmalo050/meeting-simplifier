@@ -1,4 +1,5 @@
 import importlib
+import json
 import os
 import sys
 import types
@@ -295,3 +296,104 @@ def test_transcribe_language_fixed_passes_through(ts, tmp_path, monkeypatch):
     model = _FakeModel(language="en")
     ts._transcribe(model, str(p), language="en")
     assert model.calls[0]["language"] == "en"
+
+
+# ---------------------------------------------------------------------------
+# transcribe (공개 래퍼) · main (oneshot 진입점)
+# ---------------------------------------------------------------------------
+
+def _corrupt_nframes(path):
+    data = bytearray(Path(path).read_bytes())
+    assert data[36:40] == b"data"
+    data[40:44] = (4).to_bytes(4, "little")
+    Path(path).write_bytes(bytes(data))
+
+
+def test_transcribe_cleans_up_fixed_wav(ts, tmp_path, monkeypatch):
+    """손상 nframes WAV → transcribe()가 fix_wav_header로 만든 임시 파일을 finally에서 삭제한다."""
+    p = tmp_path / "bad.wav"
+    _make_wav(p, 1.0, rate=16000)
+    _corrupt_nframes(p)
+
+    captured = {}
+    orig_fix = ts.fix_wav_header
+
+    def _tracking_fix(path):
+        fixed_path, was_fixed = orig_fix(path)
+        captured["fixed_path"] = fixed_path
+        captured["was_fixed"] = was_fixed
+        return fixed_path, was_fixed
+
+    monkeypatch.setattr(ts, "fix_wav_header", _tracking_fix)
+
+    model = _FakeModel(["복구됨"], language="ko")
+    result = ts.transcribe(model, str(p))
+
+    assert captured["was_fixed"] is True
+    assert captured["fixed_path"] != str(p)
+    assert not os.path.exists(captured["fixed_path"]), "fixed_path가 finally에서 정리되지 않음"
+    assert result["transcript"] == "복구됨"
+    assert os.path.exists(p)
+
+
+def test_transcribe_propagates_model_exception(ts, tmp_path):
+    """transcribe()는 모델 예외를 그대로 전파한다(직렬화는 main()의 책임)."""
+    p = tmp_path / "a.wav"
+    _make_wav(p, 0.5)
+
+    class _BoomModel:
+        def transcribe(self, path, language=None, beam_size=1, vad_filter=True):
+            raise RuntimeError("모델 폭발")
+
+    with pytest.raises(RuntimeError, match="폭발"):
+        ts.transcribe(_BoomModel(), str(p))
+
+
+def test_main_serializes_exception_to_error_key(ts, tmp_path, monkeypatch, capsys):
+    """main()은 예외를 {"error": ...} JSON으로 stdout에 직렬화한다(stop.md·summarize.md 계약)."""
+    p = tmp_path / "a.wav"
+    _make_wav(p, 0.5)
+
+    class _BoomModel:
+        def __init__(self, *a, **k):
+            pass
+
+        def transcribe(self, *a, **k):
+            raise RuntimeError("모델 폭발")
+
+    monkeypatch.setattr(ts, "WhisperModel", _BoomModel)
+    monkeypatch.setattr(sys, "argv", ["transcribe_server.py", "--oneshot", str(p)])
+
+    ts.main()
+
+    lines = [l for l in capsys.readouterr().out.splitlines() if l.strip()]
+    payload = json.loads(lines[-1])
+    assert payload.get("error") == "모델 폭발"
+
+
+def test_main_writes_transcript_file(ts, tmp_path, monkeypatch, capsys):
+    """main() 성공 경로: transcript 파일을 저장하고 transcript_file 키를 출력한다."""
+    p = tmp_path / "a.wav"
+    _make_wav(p, 0.5)
+
+    class _OkModel:
+        def __init__(self, *a, **k):
+            pass
+
+        def transcribe(self, path, language=None, beam_size=1, vad_filter=True):
+            return [_FakeSegment("안녕")], _FakeInfo("ko")
+
+    out_dir = tmp_path / "state"
+    monkeypatch.setattr(ts, "WhisperModel", _OkModel)
+    monkeypatch.setattr(ts, "transcript_out_dir", lambda: str(out_dir))
+    monkeypatch.setattr(sys, "argv", ["transcribe_server.py", "--oneshot", str(p)])
+
+    ts.main()
+
+    lines = [l for l in capsys.readouterr().out.splitlines() if l.strip()]
+    payload = json.loads(lines[-1])
+    assert "error" not in payload
+    assert payload["transcript"] == "안녕"
+    tfile = payload["transcript_file"]
+    assert os.path.exists(tfile)
+    assert Path(tfile).read_text(encoding="utf-8") == "안녕"
